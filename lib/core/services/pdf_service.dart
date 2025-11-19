@@ -25,6 +25,9 @@ class PdfService {
     document.pageSettings.margins.all = 0;
 
     // Load fonts
+    // Note: Syncfusion PDF library has limited support for Bangla complex script shaping
+    // Latin characters and numbers will render correctly, but Bangla text may appear broken
+    // For full Bangla support, consider using 'pdf' package instead of syncfusion_flutter_pdf
     final ByteData regularData = await rootBundle.load(
       'assets/Noto_Serif_Bengali/static/NotoSerifBengali-Regular.ttf',
     );
