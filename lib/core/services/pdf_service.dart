@@ -12,7 +12,7 @@ class PdfService {
   static final PdfColor _yellowColor = PdfColor(255, 193, 7); // Amber
   static final PdfColor _darkColor = PdfColor(51, 51, 51); // Dark Grey
   static final PdfColor _lightGrayColor = PdfColor(245, 245, 245);
-  static final PdfColor _borderColor = PdfColor(220, 220, 220);
+  // static final PdfColor _borderColor = PdfColor(220, 220, 220);
   static final PdfColor _textColor = PdfColor(60, 60, 60);
   static final PdfColor _whiteColor = PdfColor(255, 255, 255);
 
@@ -140,26 +140,35 @@ class PdfService {
     double yPosition,
     double margin,
   ) {
-    // Logo (Placeholder Icon)
-    // Draw a diamond shape for logo
-    // Simplified logo: Circle with text? Or just text.
-    // Let's draw the Brand Name text.
+    // Logo (Diamond Shape)
+    final double logoSize = 30;
+    final double logoX = margin;
+    final double logoY = yPosition;
 
+    graphics.drawPolygon([
+      Offset(logoX + logoSize / 2, logoY), // Top
+      Offset(logoX + logoSize, logoY + logoSize / 2), // Right
+      Offset(logoX + logoSize / 2, logoY + logoSize), // Bottom
+      Offset(logoX, logoY + logoSize / 2), // Left
+    ], pen: PdfPen(_darkColor, width: 3));
+
+    // Brand Name & Tagline
     final String shopName = settings?.shopName ?? 'Brand Name';
     final String tagline = 'TAGLINE SPACE HERE';
+    final double textX = margin + logoSize + 15;
 
     graphics.drawString(
       shopName,
       titleFont,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, yPosition, 300, 30),
+      bounds: Rect.fromLTWH(textX, yPosition, 300, 30),
     );
 
     graphics.drawString(
       tagline,
       taglineFont,
       brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(margin, yPosition + 30, 300, 15),
+      bounds: Rect.fromLTWH(textX, yPosition + 30, 300, 15),
     );
 
     // INVOICE Text on Right
@@ -177,47 +186,19 @@ class PdfService {
     );
 
     // Yellow Bar
-    // In the image, the yellow bar is below the logo/tagline area.
-    // It spans from left edge (or margin?) to some point?
-    // Actually, looking at the image:
-    // Top: Logo/Brand.
-    // Below that: A yellow bar.
-    // "INVOICE" is to the right of the yellow bar?
-    // Let's try: Yellow bar from left margin to right margin, but behind "INVOICE"?
-    // Or: Yellow bar on the left side, "INVOICE" on the right side.
-    // Let's look at the image again.
-    // The yellow bar is quite thick (maybe 20-30px).
-    // It is aligned with the "INVOICE" text baseline?
-    // Let's place a yellow bar across the page at y = 70.
-    // And "INVOICE" text at y = 55 (overlapping/above).
-
     double barY = yPosition + 50;
-    graphics.drawRectangle(
-      brush: PdfSolidBrush(_yellowColor),
-      bounds: Rect.fromLTWH(0, barY, pageWidth * 0.6, 25), // Partial width?
-    );
-    // Wait, the image shows the yellow bar on the LEFT side?
-    // No, looking at the crop: "INVOICE" is on the right. To the left of "INVOICE" is a yellow bar.
-    // And to the right of "INVOICE" is a yellow bar?
-    // Actually, it looks like:
-    // [Yellow Bar ------------------] [INVOICE] [Yellow Bar --]
-    // Or maybe just [Yellow Bar -----------------------] and INVOICE is on top.
-    // Let's go with: Yellow bar from left edge (0) to right edge (pageWidth).
-    // But "INVOICE" text has a white background?
 
+    // Left part of yellow bar
     graphics.drawRectangle(
       brush: PdfSolidBrush(_yellowColor),
       bounds: Rect.fromLTWH(0, barY, pageWidth * 0.55, 25),
     );
 
+    // Right part of yellow bar
     graphics.drawRectangle(
       brush: PdfSolidBrush(_yellowColor),
       bounds: Rect.fromLTWH(pageWidth * 0.85, barY, pageWidth * 0.15, 25),
     );
-
-    // Let's adjust "INVOICE" position to be aligned with this bar.
-    // If barY is 80.
-    // INVOICE text y should be around 70.
 
     return barY + 40;
   }

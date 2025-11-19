@@ -24,6 +24,7 @@ dependencies:
   # PDF Generation
   syncfusion_flutter_pdf: ^31.2.12
   printing: ^5.14.2
+  pdf: ^3.11.3
   
   # Utilities
   intl: ^0.20.2
