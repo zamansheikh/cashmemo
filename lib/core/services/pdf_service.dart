@@ -83,19 +83,19 @@ class PdfService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Using BanglaText for potential Bengali shop names
-                  BanglaText(
+                  // Using BanglaAutoText for potential Bengali shop names
+                  BanglaAutoText(
                     settings.shopName.isNotEmpty
                         ? settings.shopName
                         : "Brand Name",
-                    fontType: BanglaFontType.kalpurush,
+                    // fontType: BanglaFontType.kalpurush,
                     fontSize: 24,
                     fontWeight: pw.FontWeight.bold,
                     color: _darkColor,
                   ),
-                  BanglaText(
+                  BanglaAutoText(
                     settings.tagline ?? 'Your tagline here',
-                    fontType: BanglaFontType.kalpurush,
+                    // fontType: BanglaFontType.kalpurush,
                     fontSize: 10,
                     color: PdfColors.grey700,
                   ),
@@ -152,18 +152,18 @@ class PdfService {
             ),
             pw.SizedBox(height: 8),
             if (memo.customerName != null && memo.customerName!.isNotEmpty)
-              BanglaText(
+              BanglaAutoText(
                 memo.customerName!,
-                fontType: BanglaFontType.kalpurush,
+                // fontType: BanglaFontType.kalpurush,
                 fontWeight: pw.FontWeight.bold,
               ),
             if (memo.customerAddress != null &&
                 memo.customerAddress!.isNotEmpty)
               pw.SizedBox(
                 width: 250,
-                child: BanglaText(
+                child: BanglaAutoText(
                   memo.customerAddress!,
-                  fontType: BanglaFontType.kalpurush,
+                  // fontType: BanglaFontType.kalpurush,
                 ),
               ),
           ],
@@ -198,10 +198,10 @@ class PdfService {
             ),
           ),
         ),
-        // Value might contain Bangla (if you use Bangla numerals later), so safe to use BanglaText
-        BanglaText(
+        // Value might contain Bangla (if you use Bangla numerals later), so safe to use BanglaAutoText
+        BanglaAutoText(
           value,
-          fontType: BanglaFontType.kalpurush,
+          // fontType: BanglaFontType.kalpurush,
           fontWeight: pw.FontWeight.bold,
         ),
       ],
@@ -343,10 +343,10 @@ class PdfService {
                         color: _darkColor,
                       ),
                     ),
-                    // Use BanglaText here just in case currency symbol or numbers need shaping
-                    BanglaText(
+                    // Use BanglaAutoText here just in case currency symbol or numbers need shaping
+                    BanglaAutoText(
                       '${AppConstants.currencySymbol}${memo.total.toStringAsFixed(2)}',
-                      fontType: BanglaFontType.kalpurush,
+                      // fontType: BanglaFontType.kalpurush,
                       fontWeight: pw.FontWeight.bold,
                       fontSize: 14,
                       color: _darkColor,
@@ -373,8 +373,12 @@ class PdfService {
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
             ),
           ),
-          // Use BanglaText for dynamic values that might be in Bengali
-          BanglaText(value, fontType: BanglaFontType.kalpurush, fontSize: 10),
+          // Use BanglaAutoText for dynamic values that might be in Bengali
+          BanglaAutoText(
+            value,
+            // fontType: BanglaFontType.kalpurush,
+            fontSize: 10,
+          ),
         ],
       ),
     );
@@ -391,9 +395,9 @@ class PdfService {
             color: _darkColor,
           ),
         ),
-        BanglaText(
+        BanglaAutoText(
           '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
-          fontType: BanglaFontType.kalpurush,
+          // fontType: BanglaFontType.kalpurush,
           fontWeight: pw.FontWeight.bold,
           color: _darkColor,
         ),
@@ -445,10 +449,10 @@ class PdfService {
           padding: const pw.EdgeInsets.only(left: 40, bottom: 30),
           child: pw.Row(
             children: [
-              // Using BanglaText here because address might be in Bengali
-              BanglaText(
+              // Using BanglaAutoText here because address might be in Bengali
+              BanglaAutoText(
                 'Phone # ${settings.phone}   |   Address ${settings.address}',
-                fontType: BanglaFontType.kalpurush,
+                // fontType: BanglaFontType.kalpurush,
                 fontSize: 10,
                 color: PdfColors.grey800,
               ),
