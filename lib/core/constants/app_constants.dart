@@ -1,7 +1,7 @@
 class AppConstants {
   static const String appName = 'CashMemo';
   static const String dbName = 'cashmemo.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 2;
 
   // Table Names
   static const String productsTable = 'products';

@@ -139,7 +139,27 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle database upgrades here
+    // Upgrade from v1 to v2: Add new columns to shop_settings table
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN tagline TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN website TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN terms TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN invoice_by_name TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN invoice_by_role TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppConstants.shopSettingsTable} ADD COLUMN invoice_by_contact TEXT',
+      );
+    }
   }
 
   Future<void> close() async {
