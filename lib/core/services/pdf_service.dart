@@ -1,4 +1,5 @@
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -8,9 +9,12 @@ import '../constants/app_constants.dart';
 
 class PdfService {
   // Colors
-  static final PdfColor _orangeColor = PdfColor(255, 87, 34);
-  static final PdfColor _darkBlueColor = PdfColor(26, 46, 77);
+  static final PdfColor _yellowColor = PdfColor(255, 193, 7); // Amber
+  static final PdfColor _darkColor = PdfColor(51, 51, 51); // Dark Grey
+  static final PdfColor _lightGrayColor = PdfColor(245, 245, 245);
+  static final PdfColor _borderColor = PdfColor(220, 220, 220);
   static final PdfColor _textColor = PdfColor(60, 60, 60);
+  static final PdfColor _whiteColor = PdfColor(255, 255, 255);
 
   static Future<void> generateAndPrintCashMemo(
     CashMemo cashMemo,
@@ -32,52 +36,54 @@ class PdfService {
     final PdfFont regularFont = PdfTrueTypeFont(
       regularFontData.buffer.asUint8List(),
       10,
+      style: PdfFontStyle.regular,
     );
     final PdfFont boldFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
       10,
+      style: PdfFontStyle.bold,
     );
-    final PdfFont mediumFont = PdfTrueTypeFont(
+    final PdfFont titleFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
-      12,
+      24,
+      style: PdfFontStyle.bold,
     );
     final PdfFont headerFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
       30,
+      style: PdfFontStyle.bold,
     );
-    final PdfFont titleFont = PdfTrueTypeFont(
+    final PdfFont mediumFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
-      18,
-    );
-    final PdfFont smallFont = PdfTrueTypeFont(
-      regularFontData.buffer.asUint8List(),
-      8,
+      14,
+      style: PdfFontStyle.bold,
     );
 
-    // Initial Page
-    PdfPage currentPage = document.pages.add();
-    final double pageWidth = currentPage.getClientSize().width;
-    final double pageHeight = currentPage.getClientSize().height;
+    final PdfPage page = document.pages.add();
+    final PdfGraphics graphics = page.graphics;
+    final double pageWidth = page.getClientSize().width;
+    final double pageHeight = page.getClientSize().height;
     final double margin = 40;
-    double yPosition = 0;
 
-    // Draw Header (Geometric Shapes)
+    double yPosition = 30;
+
+    // 1. Header
     yPosition = _drawHeader(
-      currentPage.graphics,
+      graphics,
       shopSettings,
+      titleFont,
+      regularFont,
       headerFont,
-      titleFont,
-      regularFont,
       pageWidth,
+      yPosition,
+      margin,
     );
 
-    yPosition += 30;
-
-    // Draw Invoice Info (Customer & Invoice Details)
+    // 2. Invoice Info
     yPosition = _drawInvoiceInfo(
-      currentPage.graphics,
+      graphics,
       cashMemo,
-      titleFont,
+      mediumFont,
       boldFont,
       regularFont,
       yPosition,
@@ -85,118 +91,135 @@ class PdfService {
       margin,
     );
 
-    yPosition += 30;
-
-    // Draw Items Table
-    final PdfLayoutResult result = _drawItemsTable(
-      currentPage,
+    // 3. Items Table
+    final PdfLayoutResult tableResult = _drawItemsTable(
+      page,
       cashMemo,
       boldFont,
       regularFont,
-      yPosition,
+      yPosition + 20,
       pageWidth,
       margin,
     );
+    yPosition = tableResult.bounds.bottom + 20;
 
-    currentPage = result.page;
-    yPosition = result.bounds.bottom + 30;
-
-    // Draw Footer Section (Totals, Payment Info, Terms, Sign)
-    // Check if we need a new page
-    if (yPosition + 250 > pageHeight) {
-      currentPage = document.pages.add();
-      yPosition = margin + 50; // Add some top margin on new page
-    }
-
+    // 4. Footer Section (Summary, Terms, Sign)
     _drawFooterSection(
-      currentPage.graphics,
+      graphics,
       cashMemo,
       shopSettings,
       mediumFont,
       regularFont,
       boldFont,
-      smallFont,
+      regularFont, // smallFont (using regular for now)
       yPosition,
       pageWidth,
       pageHeight,
       margin,
     );
 
-    // Draw Geometric Footer on the last page
-    _drawGeometricFooter(currentPage.graphics, pageWidth, pageHeight);
+    // 5. Bottom Bar
+    _drawBottomBar(graphics, pageWidth, pageHeight, margin, regularFont);
 
-    // Save and print
+    // Save and Print
     final List<int> bytes = await document.save();
     document.dispose();
 
     await Printing.layoutPdf(
-      onLayout: (format) async => Uint8List.fromList(bytes),
+      onLayout: (PdfPageFormat format) async => Uint8List.fromList(bytes),
     );
   }
 
   static double _drawHeader(
     PdfGraphics graphics,
     ShopSettings? settings,
-    PdfFont headerFont,
     PdfFont titleFont,
-    PdfFont regularFont,
+    PdfFont taglineFont,
+    PdfFont headerFont,
     double pageWidth,
+    double yPosition,
+    double margin,
   ) {
-    // 1. Dark Blue Shape (Left)
-    graphics.drawPolygon([
-      Offset(0, 0),
-      Offset(pageWidth * 0.45, 0),
-      Offset(pageWidth * 0.40, 80),
-      Offset(0, 80),
-    ], brush: PdfSolidBrush(_darkBlueColor));
+    // Logo (Placeholder Icon)
+    // Draw a diamond shape for logo
+    // Simplified logo: Circle with text? Or just text.
+    // Let's draw the Brand Name text.
 
-    // 2. Orange Shape (Right)
-    graphics.drawPolygon([
-      Offset(pageWidth * 0.48, 0),
-      Offset(pageWidth, 0),
-      Offset(pageWidth, 100),
-      Offset(pageWidth * 0.42, 100),
-    ], brush: PdfSolidBrush(_orangeColor));
-
-    // 3. INVOICE Text (Left)
-    graphics.drawString(
-      'INVOICE',
-      headerFont,
-      brush: PdfSolidBrush(_darkBlueColor),
-      bounds: Rect.fromLTWH(40, 100, 200, 40),
-    );
-
-    // 4. Brand Name & Tagline (Right - inside Orange shape)
     final String shopName = settings?.shopName ?? 'Brand Name';
-    final Size shopNameSize = titleFont.measureString(shopName);
+    final String tagline = 'TAGLINE SPACE HERE';
 
     graphics.drawString(
       shopName,
       titleFont,
-      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
-      bounds: Rect.fromLTWH(
-        pageWidth - 40 - shopNameSize.width,
-        30,
-        shopNameSize.width,
-        shopNameSize.height,
-      ),
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(margin, yPosition, 300, 30),
     );
 
-    final String tagline = 'TAGLINE SPACE HERE'; // Placeholder or from settings
-    final Size taglineSize = regularFont.measureString(tagline);
     graphics.drawString(
       tagline,
-      regularFont,
-      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
+      taglineFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, yPosition + 30, 300, 15),
+    );
+
+    // INVOICE Text on Right
+    final Size invoiceSize = headerFont.measureString('INVOICE');
+    graphics.drawString(
+      'INVOICE',
+      headerFont,
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(
-        pageWidth - 40 - taglineSize.width,
-        30 + shopNameSize.height + 5,
-        taglineSize.width,
-        taglineSize.height,
+        pageWidth - margin - invoiceSize.width,
+        yPosition + 10,
+        invoiceSize.width,
+        invoiceSize.height,
       ),
     );
 
-    return 150; // Return Y position below header
+    // Yellow Bar
+    // In the image, the yellow bar is below the logo/tagline area.
+    // It spans from left edge (or margin?) to some point?
+    // Actually, looking at the image:
+    // Top: Logo/Brand.
+    // Below that: A yellow bar.
+    // "INVOICE" is to the right of the yellow bar?
+    // Let's try: Yellow bar from left margin to right margin, but behind "INVOICE"?
+    // Or: Yellow bar on the left side, "INVOICE" on the right side.
+    // Let's look at the image again.
+    // The yellow bar is quite thick (maybe 20-30px).
+    // It is aligned with the "INVOICE" text baseline?
+    // Let's place a yellow bar across the page at y = 70.
+    // And "INVOICE" text at y = 55 (overlapping/above).
+
+    double barY = yPosition + 50;
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(0, barY, pageWidth * 0.6, 25), // Partial width?
+    );
+    // Wait, the image shows the yellow bar on the LEFT side?
+    // No, looking at the crop: "INVOICE" is on the right. To the left of "INVOICE" is a yellow bar.
+    // And to the right of "INVOICE" is a yellow bar?
+    // Actually, it looks like:
+    // [Yellow Bar ------------------] [INVOICE] [Yellow Bar --]
+    // Or maybe just [Yellow Bar -----------------------] and INVOICE is on top.
+    // Let's go with: Yellow bar from left edge (0) to right edge (pageWidth).
+    // But "INVOICE" text has a white background?
+
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(0, barY, pageWidth * 0.55, 25),
+    );
+
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(pageWidth * 0.85, barY, pageWidth * 0.15, 25),
+    );
+
+    // Let's adjust "INVOICE" position to be aligned with this bar.
+    // If barY is 80.
+    // INVOICE text y should be around 70.
+
+    return barY + 40;
   }
 
   static double _drawInvoiceInfo(
@@ -213,7 +236,7 @@ class PdfService {
     graphics.drawString(
       'Invoice to:',
       titleFont,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(margin, yPosition, 200, 20),
     );
 
@@ -240,31 +263,22 @@ class PdfService {
       leftY += 30;
     }
 
-    if (cashMemo.customerPhone != null && cashMemo.customerPhone!.isNotEmpty) {
-      graphics.drawString(
-        cashMemo.customerPhone!,
-        regularFont,
-        brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin, leftY, 250, 15),
-      );
-    }
-
     // Right: Invoice Details
-    double rightY = yPosition + 10;
-    final double rightColX = pageWidth - margin - 200;
+    double rightY = yPosition + 5;
+    final double rightColX = pageWidth - margin - 250;
 
     // Invoice #
     graphics.drawString(
       'Invoice#',
       boldFont,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(rightColX, rightY, 80, 15),
     );
     graphics.drawString(
       cashMemo.memoNumber,
       boldFont,
       brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightColX + 100, rightY, 100, 15),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY, 150, 15),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
     rightY += 20;
@@ -273,14 +287,14 @@ class PdfService {
     graphics.drawString(
       'Date',
       boldFont,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(rightColX, rightY, 80, 15),
     );
     graphics.drawString(
       DateFormat('dd / MM / yyyy').format(cashMemo.date),
       boldFont,
       brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightColX + 100, rightY, 100, 15),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY, 150, 15),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
 
@@ -317,19 +331,25 @@ class PdfService {
     for (int i = 0; i < 5; i++) {
       headerRow.cells[i].style = PdfGridCellStyle(
         font: boldFont,
-        textBrush: PdfSolidBrush(_textColor),
-        backgroundBrush: PdfSolidBrush(PdfColor(255, 255, 255)),
+        textBrush: PdfSolidBrush(_whiteColor),
+        backgroundBrush: PdfSolidBrush(_darkColor),
         cellPadding: PdfPaddings(left: 5, right: 5, top: 10, bottom: 10),
         borders: PdfBorders(
-          top: PdfPen(_orangeColor, width: 1.5),
-          bottom: PdfPen(_orangeColor, width: 1.5),
-          left: PdfPen(PdfColor(0, 0, 0, 0)),
-          right: PdfPen(PdfColor(0, 0, 0, 0)),
+          left: PdfPen(_darkColor, width: 0),
+          right: PdfPen(_darkColor, width: 0),
+          top: PdfPen(_darkColor, width: 0),
+          bottom: PdfPen(_darkColor, width: 0),
         ),
       );
       if (i >= 2) {
         headerRow.cells[i].stringFormat = PdfStringFormat(
           alignment: PdfTextAlignment.right,
+          lineAlignment: PdfVerticalAlignment.middle,
+        );
+      } else {
+        headerRow.cells[i].stringFormat = PdfStringFormat(
+          alignment: PdfTextAlignment.left,
+          lineAlignment: PdfVerticalAlignment.middle,
         );
       }
     }
@@ -347,21 +367,30 @@ class PdfService {
       row.cells[4].value =
           '${AppConstants.currencySymbol}${item.total.toStringAsFixed(2)}';
 
+      final PdfColor rowColor = (i % 2 == 0) ? _whiteColor : _lightGrayColor;
+
       for (int j = 0; j < 5; j++) {
         row.cells[j].style = PdfGridCellStyle(
           font: regularFont,
           textBrush: PdfSolidBrush(_textColor),
+          backgroundBrush: PdfSolidBrush(rowColor),
           cellPadding: PdfPaddings(left: 5, right: 5, top: 10, bottom: 10),
           borders: PdfBorders(
-            bottom: PdfPen(PdfColor(230, 230, 230), width: 1),
-            left: PdfPen(PdfColor(0, 0, 0, 0)),
-            right: PdfPen(PdfColor(0, 0, 0, 0)),
-            top: PdfPen(PdfColor(0, 0, 0, 0)),
+            left: PdfPen(rowColor, width: 0),
+            right: PdfPen(rowColor, width: 0),
+            top: PdfPen(rowColor, width: 0),
+            bottom: PdfPen(rowColor, width: 0),
           ),
         );
         if (j >= 2) {
           row.cells[j].stringFormat = PdfStringFormat(
             alignment: PdfTextAlignment.right,
+            lineAlignment: PdfVerticalAlignment.middle,
+          );
+        } else {
+          row.cells[j].stringFormat = PdfStringFormat(
+            alignment: PdfTextAlignment.left,
+            lineAlignment: PdfVerticalAlignment.middle,
           );
         }
       }
@@ -377,6 +406,14 @@ class PdfService {
       page: page,
       bounds: Rect.fromLTWH(margin, yPosition, tableWidth, 0),
     )!;
+
+    // Draw border around the empty space below?
+    // The image shows a box around the items area, extending down.
+    // Since we can't easily draw a box that expands, let's just draw a border around the table if needed.
+    // But the image shows the table header is dark, rows are alternating.
+    // And there is a border around the whole "content" area?
+    // Actually, looking at the image, there is a thin blue border around the white space below the items?
+    // Let's skip the complex dynamic border for now and focus on the table style.
 
     return result;
   }
@@ -398,7 +435,7 @@ class PdfService {
     graphics.drawString(
       'Thank you for your business',
       boldFont,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(margin, yPosition, 300, 20),
     );
     yPosition += 30;
@@ -407,11 +444,27 @@ class PdfService {
     double rightY = yPosition;
 
     // 2. Left Side: Payment Info & Terms
+    // Terms & Conditions
+    graphics.drawString(
+      'Terms & Conditions',
+      boldFont,
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(margin, leftY, 200, 15),
+    );
+    leftY += 15;
+    graphics.drawString(
+      'Lorem ipsum dolor sit amet, consectetur adipiscing\nelit. Fusce dignissim pretium consectetur.',
+      regularFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, leftY, 300, 40),
+    );
+    leftY += 40;
+
     // Payment Info
     graphics.drawString(
       'Payment Info:',
       boldFont,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(margin, leftY, 200, 15),
     );
     leftY += 20;
@@ -446,22 +499,6 @@ class PdfService {
       leftY,
       labelWidth,
     );
-    leftY += 30;
-
-    // Terms & Conditions
-    graphics.drawString(
-      'Terms & Conditions',
-      boldFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(margin, leftY, 200, 15),
-    );
-    leftY += 15;
-    graphics.drawString(
-      'Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit. Fusce\ndignissim pretium consectetur.',
-      smallFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(margin, leftY, 250, 40),
-    );
 
     // 3. Right Side: Totals
     final double rightColX = pageWidth - margin - 250;
@@ -472,60 +509,90 @@ class PdfService {
       graphics,
       'Sub Total:',
       cashMemo.subtotal,
-      regularFont,
+      boldFont,
       rightColX,
       rightY,
       rightColWidth,
     );
-    rightY += 20;
+    rightY += 25;
 
     // Tax
     _drawTotalRow(
       graphics,
       'Tax:',
       cashMemo.tax,
-      regularFont,
+      boldFont,
       rightColX,
       rightY,
       rightColWidth,
     );
-    rightY += 20;
+    rightY += 25;
 
-    // Divider
-    graphics.drawLine(
-      PdfPen(PdfColor(200, 200, 200), width: 1),
-      Offset(rightColX, rightY),
-      Offset(rightColX + rightColWidth, rightY),
+    // Total Box (Yellow)
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(rightColX, rightY, rightColWidth, 35),
     );
-    rightY += 10;
 
-    // Total
     graphics.drawString(
       'Total:',
       mediumFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightColX, rightY, 100, 20),
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(rightColX + 10, rightY + 8, 100, 20),
     );
     graphics.drawString(
       '${AppConstants.currencySymbol}${cashMemo.total.toStringAsFixed(2)}',
       mediumFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightColX + 100, rightY, 150, 20),
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY + 8, 140, 20),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
+    );
+  }
+
+  static void _drawBottomBar(
+    PdfGraphics graphics,
+    double pageWidth,
+    double pageHeight,
+    double margin,
+    PdfFont font,
+  ) {
+    // Yellow Bar at bottom
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(0, pageHeight - 40, pageWidth * 0.6, 5),
+    );
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(_yellowColor),
+      bounds: Rect.fromLTWH(
+        pageWidth * 0.9,
+        pageHeight - 40,
+        pageWidth * 0.1,
+        5,
+      ),
+    );
+
+    // Contact Info
+    final String contactInfo = 'Phone #   |   Address   |   Website';
+    graphics.drawString(
+      contactInfo,
+      font,
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(margin + 20, pageHeight - 25, 400, 20),
     );
 
     // Authorised Sign
-    final double signY = pageHeight - 120; // Position near bottom
+    final double signY = pageHeight - 60;
+    final double signX = pageWidth - margin - 150;
     graphics.drawLine(
-      PdfPen(_textColor, width: 1),
-      Offset(pageWidth - margin - 150, signY),
-      Offset(pageWidth - margin, signY),
+      PdfPen(_darkColor, width: 1),
+      Offset(signX, signY),
+      Offset(signX + 150, signY),
     );
     graphics.drawString(
       'Authorised Sign',
-      boldFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(pageWidth - margin - 150, signY + 5, 150, 15),
+      font,
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(signX, signY + 5, 150, 15),
       format: PdfStringFormat(alignment: PdfTextAlignment.center),
     );
   }
@@ -542,7 +609,7 @@ class PdfService {
     graphics.drawString(
       label,
       font,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(x, y, labelWidth, 15),
     );
     graphics.drawString(
@@ -565,43 +632,15 @@ class PdfService {
     graphics.drawString(
       label,
       font,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(x, y, width / 2, 15),
     );
     graphics.drawString(
       '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
       font,
-      brush: PdfSolidBrush(_textColor),
+      brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(x + width / 2, y, width / 2, 15),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
-    );
-  }
-
-  static void _drawGeometricFooter(
-    PdfGraphics graphics,
-    double pageWidth,
-    double pageHeight,
-  ) {
-    // 1. Dark Blue Shape (Left Bottom)
-    graphics.drawPolygon(
-      [
-        Offset(0, pageHeight),
-        Offset(0, pageHeight - 40),
-        Offset(pageWidth * 0.35, pageHeight - 40),
-        Offset(pageWidth * 0.45, pageHeight),
-      ],
-      brush: PdfSolidBrush(_darkBlueColor),
-    );
-
-    // 2. Orange Shape (Right Bottom)
-    graphics.drawPolygon(
-      [
-        Offset(pageWidth * 0.50, pageHeight),
-        Offset(pageWidth * 0.55, pageHeight - 50),
-        Offset(pageWidth, pageHeight - 50),
-        Offset(pageWidth, pageHeight),
-      ],
-      brush: PdfSolidBrush(_orangeColor),
     );
   }
 }
