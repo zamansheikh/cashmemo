@@ -7,6 +7,11 @@ import '../../domain/entities/shop_settings.dart';
 import '../constants/app_constants.dart';
 
 class PdfService {
+  // Colors
+  static final PdfColor _orangeColor = PdfColor(255, 87, 34);
+  static final PdfColor _darkBlueColor = PdfColor(26, 46, 77);
+  static final PdfColor _textColor = PdfColor(60, 60, 60);
+
   static Future<void> generateAndPrintCashMemo(
     CashMemo cashMemo,
     ShopSettings? shopSettings,
@@ -38,11 +43,11 @@ class PdfService {
     );
     final PdfFont headerFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
-      20,
+      30,
     );
     final PdfFont titleFont = PdfTrueTypeFont(
       boldFontData.buffer.asUint8List(),
-      16,
+      18,
     );
     final PdfFont smallFont = PdfTrueTypeFont(
       regularFontData.buffer.asUint8List(),
@@ -54,28 +59,25 @@ class PdfService {
     final double pageWidth = currentPage.getClientSize().width;
     final double pageHeight = currentPage.getClientSize().height;
     final double margin = 40;
-    double yPosition = margin;
+    double yPosition = 0;
 
-    // Draw Header
+    // Draw Header (Geometric Shapes)
     yPosition = _drawHeader(
       currentPage.graphics,
       shopSettings,
-      cashMemo,
       headerFont,
-      mediumFont,
-      regularFont,
       titleFont,
-      yPosition,
+      regularFont,
       pageWidth,
-      margin,
     );
 
-    yPosition += 20;
+    yPosition += 30;
 
-    // Draw Customer Details
-    yPosition = _drawCustomerDetails(
+    // Draw Invoice Info (Customer & Invoice Details)
+    yPosition = _drawInvoiceInfo(
       currentPage.graphics,
       cashMemo,
+      titleFont,
       boldFont,
       regularFont,
       yPosition,
@@ -83,7 +85,7 @@ class PdfService {
       margin,
     );
 
-    yPosition += 15;
+    yPosition += 30;
 
     // Draw Items Table
     final PdfLayoutResult result = _drawItemsTable(
@@ -97,44 +99,31 @@ class PdfService {
     );
 
     currentPage = result.page;
-    yPosition = result.bounds.bottom + 20;
+    yPosition = result.bounds.bottom + 30;
 
-    // Draw Totals
-    // Check if we need a new page for totals
-    if (yPosition + 150 > pageHeight - margin) {
+    // Draw Footer Section (Totals, Payment Info, Terms, Sign)
+    // Check if we need a new page
+    if (yPosition + 250 > pageHeight) {
       currentPage = document.pages.add();
-      yPosition = margin;
+      yPosition = margin + 50; // Add some top margin on new page
     }
 
-    _drawTotals(
+    _drawFooterSection(
       currentPage.graphics,
       cashMemo,
+      shopSettings,
       mediumFont,
       regularFont,
       boldFont,
+      smallFont,
       yPosition,
       pageWidth,
-      margin,
-    );
-
-    // Draw Footer on the last page
-    _drawFooter(
-      currentPage.graphics,
-      boldFont,
-      smallFont,
       pageHeight,
-      pageWidth,
       margin,
     );
 
-    // Draw Border on all pages
-    for (int i = 0; i < document.pages.count; i++) {
-      final PdfPage p = document.pages[i];
-      p.graphics.drawRectangle(
-        pen: PdfPen(PdfColor(46, 125, 50), width: 1),
-        bounds: Rect.fromLTWH(20, 20, pageWidth - 40, pageHeight - 40),
-      );
-    }
+    // Draw Geometric Footer on the last page
+    _drawGeometricFooter(currentPage.graphics, pageWidth, pageHeight);
 
     // Save and print
     final List<int> bytes = await document.save();
@@ -148,188 +137,96 @@ class PdfService {
   static double _drawHeader(
     PdfGraphics graphics,
     ShopSettings? settings,
-    CashMemo cashMemo,
     PdfFont headerFont,
-    PdfFont mediumFont,
-    PdfFont regularFont,
     PdfFont titleFont,
-    double yPosition,
+    PdfFont regularFont,
     double pageWidth,
-    double margin,
   ) {
-    final double contentWidth = pageWidth - (margin * 2);
+    // 1. Dark Blue Shape (Left)
+    graphics.drawPolygon([
+      Offset(0, 0),
+      Offset(pageWidth * 0.45, 0),
+      Offset(pageWidth * 0.40, 80),
+      Offset(0, 80),
+    ], brush: PdfSolidBrush(_darkBlueColor));
 
-    // Left Side: Shop Info
-    double leftY = yPosition;
-    final String shopName = settings?.shopName.toUpperCase() ?? 'GROCERY SHOP';
+    // 2. Orange Shape (Right)
+    graphics.drawPolygon([
+      Offset(pageWidth * 0.48, 0),
+      Offset(pageWidth, 0),
+      Offset(pageWidth, 100),
+      Offset(pageWidth * 0.42, 100),
+    ], brush: PdfSolidBrush(_orangeColor));
+
+    // 3. INVOICE Text (Left)
+    graphics.drawString(
+      'INVOICE',
+      headerFont,
+      brush: PdfSolidBrush(_darkBlueColor),
+      bounds: Rect.fromLTWH(40, 100, 200, 40),
+    );
+
+    // 4. Brand Name & Tagline (Right - inside Orange shape)
+    final String shopName = settings?.shopName ?? 'Brand Name';
+    final Size shopNameSize = titleFont.measureString(shopName);
+
     graphics.drawString(
       shopName,
-      headerFont,
-      brush: PdfSolidBrush(PdfColor(46, 125, 50)),
-      bounds: Rect.fromLTWH(margin, leftY, contentWidth / 2, 25),
-    );
-    leftY += 25;
-
-    if (settings?.address != null && settings!.address!.isNotEmpty) {
-      graphics.drawString(
-        settings.address!,
-        regularFont,
-        bounds: Rect.fromLTWH(
-          margin,
-          leftY,
-          contentWidth / 2,
-          40,
-        ), // Allow multiline
-        format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
-      );
-      // Estimate height
-      final Size size = regularFont.measureString(
-        settings.address!,
-        layoutArea: Size(contentWidth / 2, 40),
-      );
-      leftY += size.height + 5;
-    }
-
-    String contactInfo = '';
-    if (settings?.phone != null && settings!.phone!.isNotEmpty) {
-      contactInfo = 'Phone: ${settings.phone}';
-    }
-    if (settings?.email != null && settings!.email!.isNotEmpty) {
-      if (contactInfo.isNotEmpty) contactInfo += '\n';
-      contactInfo += 'Email: ${settings.email}';
-    }
-    if (contactInfo.isNotEmpty) {
-      graphics.drawString(
-        contactInfo,
-        regularFont,
-        bounds: Rect.fromLTWH(margin, leftY, contentWidth / 2, 40),
-      );
-      final Size size = regularFont.measureString(
-        contactInfo,
-        layoutArea: Size(contentWidth / 2, 40),
-      );
-      leftY += size.height + 5;
-    }
-
-    if (settings?.gstNumber != null && settings!.gstNumber!.isNotEmpty) {
-      graphics.drawString(
-        'GST: ${settings.gstNumber}',
-        regularFont,
-        bounds: Rect.fromLTWH(margin, leftY, contentWidth / 2, 15),
-      );
-      leftY += 15;
-    }
-
-    // Right Side: Invoice Info
-    double rightY = yPosition;
-    final String title = 'CASH MEMO';
-    final Size titleSize = titleFont.measureString(title);
-    graphics.drawString(
-      title,
       titleFont,
-      brush: PdfSolidBrush(PdfColor(46, 125, 50)),
+      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
       bounds: Rect.fromLTWH(
-        pageWidth - margin - titleSize.width,
-        rightY,
-        titleSize.width,
-        20,
+        pageWidth - 40 - shopNameSize.width,
+        30,
+        shopNameSize.width,
+        shopNameSize.height,
       ),
     );
-    rightY += 25;
 
-    final String memoNo = 'Memo No: ${cashMemo.memoNumber}';
-    final Size memoSize = mediumFont.measureString(memoNo);
+    final String tagline = 'TAGLINE SPACE HERE'; // Placeholder or from settings
+    final Size taglineSize = regularFont.measureString(tagline);
     graphics.drawString(
-      memoNo,
-      mediumFont,
-      bounds: Rect.fromLTWH(
-        pageWidth - margin - memoSize.width,
-        rightY,
-        memoSize.width,
-        15,
-      ),
-    );
-    rightY += 18;
-
-    final String dateText =
-        'Date: ${DateFormat(AppConstants.dateFormat).format(cashMemo.date)}';
-    final Size dateSize = regularFont.measureString(dateText);
-    graphics.drawString(
-      dateText,
+      tagline,
       regularFont,
+      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
       bounds: Rect.fromLTWH(
-        pageWidth - margin - dateSize.width,
-        rightY,
-        dateSize.width,
-        15,
+        pageWidth - 40 - taglineSize.width,
+        30 + shopNameSize.height + 5,
+        taglineSize.width,
+        taglineSize.height,
       ),
     );
-    rightY += 15;
 
-    final String timeText =
-        'Time: ${DateFormat('hh:mm a').format(cashMemo.date)}';
-    final Size timeSize = regularFont.measureString(timeText);
-    graphics.drawString(
-      timeText,
-      regularFont,
-      bounds: Rect.fromLTWH(
-        pageWidth - margin - timeSize.width,
-        rightY,
-        timeSize.width,
-        15,
-      ),
-    );
-    rightY += 15;
-
-    // Return the max Y
-    double maxY = leftY > rightY ? leftY : rightY;
-
-    // Draw separator line
-    graphics.drawLine(
-      PdfPen(PdfColor(46, 125, 50), width: 1),
-      Offset(margin, maxY + 5),
-      Offset(pageWidth - margin, maxY + 5),
-    );
-
-    return maxY + 10;
+    return 150; // Return Y position below header
   }
 
-  static double _drawCustomerDetails(
+  static double _drawInvoiceInfo(
     PdfGraphics graphics,
     CashMemo cashMemo,
+    PdfFont titleFont,
     PdfFont boldFont,
     PdfFont regularFont,
     double yPosition,
     double pageWidth,
     double margin,
   ) {
-    if (cashMemo.customerName == null && cashMemo.customerPhone == null) {
-      return yPosition;
-    }
-
+    // Left: Invoice To
     graphics.drawString(
-      'Bill To:',
-      boldFont,
-      bounds: Rect.fromLTWH(margin, yPosition, 100, 15),
+      'Invoice to:',
+      titleFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, yPosition, 200, 20),
     );
-    yPosition += 15;
+
+    double leftY = yPosition + 25;
 
     if (cashMemo.customerName != null) {
       graphics.drawString(
         cashMemo.customerName!,
-        regularFont,
-        bounds: Rect.fromLTWH(margin, yPosition, 300, 15),
+        boldFont,
+        brush: PdfSolidBrush(_textColor),
+        bounds: Rect.fromLTWH(margin, leftY, 250, 15),
       );
-      yPosition += 15;
-    }
-
-    if (cashMemo.customerPhone != null && cashMemo.customerPhone!.isNotEmpty) {
-      graphics.drawString(
-        'Phone: ${cashMemo.customerPhone}',
-        regularFont,
-        bounds: Rect.fromLTWH(margin, yPosition, 300, 15),
-      );
-      yPosition += 15;
+      leftY += 15;
     }
 
     if (cashMemo.customerAddress != null &&
@@ -337,12 +234,57 @@ class PdfService {
       graphics.drawString(
         cashMemo.customerAddress!,
         regularFont,
-        bounds: Rect.fromLTWH(margin, yPosition, 300, 30), // Allow multiline
+        brush: PdfSolidBrush(_textColor),
+        bounds: Rect.fromLTWH(margin, leftY, 250, 40), // Multiline
       );
-      yPosition += 30;
+      leftY += 30;
     }
 
-    return yPosition;
+    if (cashMemo.customerPhone != null && cashMemo.customerPhone!.isNotEmpty) {
+      graphics.drawString(
+        cashMemo.customerPhone!,
+        regularFont,
+        brush: PdfSolidBrush(_textColor),
+        bounds: Rect.fromLTWH(margin, leftY, 250, 15),
+      );
+    }
+
+    // Right: Invoice Details
+    double rightY = yPosition + 10;
+    final double rightColX = pageWidth - margin - 200;
+
+    // Invoice #
+    graphics.drawString(
+      'Invoice#',
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX, rightY, 80, 15),
+    );
+    graphics.drawString(
+      cashMemo.memoNumber,
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY, 100, 15),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right),
+    );
+    rightY += 20;
+
+    // Date
+    graphics.drawString(
+      'Date',
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX, rightY, 80, 15),
+    );
+    graphics.drawString(
+      DateFormat('dd / MM / yyyy').format(cashMemo.date),
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY, 100, 15),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right),
+    );
+
+    return leftY > rightY ? leftY : rightY;
   }
 
   static PdfLayoutResult _drawItemsTable(
@@ -358,25 +300,32 @@ class PdfService {
     grid.columns.add(count: 5);
 
     final double tableWidth = pageWidth - (margin * 2);
-    grid.columns[0].width = tableWidth * 0.08; // S.No
-    grid.columns[1].width = tableWidth * 0.40; // Item
-    grid.columns[2].width = tableWidth * 0.15; // Qty
-    grid.columns[3].width = tableWidth * 0.17; // Price
-    grid.columns[4].width = tableWidth * 0.20; // Amount
+    grid.columns[0].width = tableWidth * 0.08; // SL.
+    grid.columns[1].width = tableWidth * 0.42; // Item Description
+    grid.columns[2].width = tableWidth * 0.15; // Price
+    grid.columns[3].width = tableWidth * 0.15; // Qty.
+    grid.columns[4].width = tableWidth * 0.20; // Total
 
     final PdfGridRow headerRow = grid.headers.add(1)[0];
-    headerRow.cells[0].value = 'S.No';
-    headerRow.cells[1].value = 'Item';
-    headerRow.cells[2].value = 'Qty';
-    headerRow.cells[3].value = 'Price';
-    headerRow.cells[4].value = 'Amount';
+    headerRow.cells[0].value = 'SL.';
+    headerRow.cells[1].value = 'Item Description';
+    headerRow.cells[2].value = 'Price';
+    headerRow.cells[3].value = 'Qty.';
+    headerRow.cells[4].value = 'Total';
 
+    // Header Style
     for (int i = 0; i < 5; i++) {
       headerRow.cells[i].style = PdfGridCellStyle(
         font: boldFont,
-        backgroundBrush: PdfSolidBrush(PdfColor(46, 125, 50)),
-        textBrush: PdfSolidBrush(PdfColor(255, 255, 255)),
-        cellPadding: PdfPaddings(left: 5, right: 5, top: 8, bottom: 8),
+        textBrush: PdfSolidBrush(_textColor),
+        backgroundBrush: PdfSolidBrush(PdfColor(255, 255, 255)),
+        cellPadding: PdfPaddings(left: 5, right: 5, top: 10, bottom: 10),
+        borders: PdfBorders(
+          top: PdfPen(_orangeColor, width: 1.5),
+          bottom: PdfPen(_orangeColor, width: 1.5),
+          left: PdfPen(PdfColor(0, 0, 0, 0)),
+          right: PdfPen(PdfColor(0, 0, 0, 0)),
+        ),
       );
       if (i >= 2) {
         headerRow.cells[i].stringFormat = PdfStringFormat(
@@ -385,30 +334,29 @@ class PdfService {
       }
     }
 
+    // Rows
     for (int i = 0; i < cashMemo.items.length; i++) {
       final item = cashMemo.items[i];
       final PdfGridRow row = grid.rows.add();
 
       row.cells[0].value = '${i + 1}';
       row.cells[1].value = item.productName;
-      row.cells[2].value = '${item.quantity} ${item.unit}';
-      row.cells[3].value =
+      row.cells[2].value =
           '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}';
+      row.cells[3].value = '${item.quantity}';
       row.cells[4].value =
           '${AppConstants.currencySymbol}${item.total.toStringAsFixed(2)}';
 
       for (int j = 0; j < 5; j++) {
         row.cells[j].style = PdfGridCellStyle(
           font: regularFont,
-          cellPadding: PdfPaddings(left: 5, right: 5, top: 5, bottom: 5),
-          backgroundBrush: i % 2 == 0
-              ? PdfSolidBrush(PdfColor(255, 255, 255))
-              : PdfSolidBrush(PdfColor(248, 250, 248)),
+          textBrush: PdfSolidBrush(_textColor),
+          cellPadding: PdfPaddings(left: 5, right: 5, top: 10, bottom: 10),
           borders: PdfBorders(
-            left: PdfPen(PdfColor(200, 200, 200), width: 0.5),
-            right: PdfPen(PdfColor(200, 200, 200), width: 0.5),
-            top: PdfPen(PdfColor(200, 200, 200), width: 0.5),
-            bottom: PdfPen(PdfColor(200, 200, 200), width: 0.5),
+            bottom: PdfPen(PdfColor(230, 230, 230), width: 1),
+            left: PdfPen(PdfColor(0, 0, 0, 0)),
+            right: PdfPen(PdfColor(0, 0, 0, 0)),
+            top: PdfPen(PdfColor(0, 0, 0, 0)),
           ),
         );
         if (j >= 2) {
@@ -433,147 +381,227 @@ class PdfService {
     return result;
   }
 
-  static void _drawTotals(
+  static void _drawFooterSection(
     PdfGraphics graphics,
     CashMemo cashMemo,
+    ShopSettings? settings,
     PdfFont mediumFont,
     PdfFont regularFont,
     PdfFont boldFont,
+    PdfFont smallFont,
     double yPosition,
     double pageWidth,
+    double pageHeight,
     double margin,
   ) {
-    final double width = 200;
-    final double startX = pageWidth - margin - width;
-
-    // Subtotal
+    // 1. Thank you message
     graphics.drawString(
-      'Subtotal:',
-      regularFont,
-      bounds: Rect.fromLTWH(startX, yPosition, width / 2, 15),
+      'Thank you for your business',
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, yPosition, 300, 20),
     );
-    graphics.drawString(
-      '${AppConstants.currencySymbol}${cashMemo.subtotal.toStringAsFixed(2)}',
-      regularFont,
-      bounds: Rect.fromLTWH(startX + width / 2, yPosition, width / 2, 15),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right),
-    );
-    yPosition += 20;
+    yPosition += 30;
 
-    // Discount
-    if (cashMemo.discount > 0) {
-      graphics.drawString(
-        'Discount:',
-        regularFont,
-        bounds: Rect.fromLTWH(startX, yPosition, width / 2, 15),
-      );
-      graphics.drawString(
-        '- ${AppConstants.currencySymbol}${cashMemo.discount.toStringAsFixed(2)}',
-        regularFont,
-        brush: PdfSolidBrush(PdfColor(200, 0, 0)),
-        bounds: Rect.fromLTWH(startX + width / 2, yPosition, width / 2, 15),
-        format: PdfStringFormat(alignment: PdfTextAlignment.right),
-      );
-      yPosition += 20;
-    }
+    double leftY = yPosition;
+    double rightY = yPosition;
+
+    // 2. Left Side: Payment Info & Terms
+    // Payment Info
+    graphics.drawString(
+      'Payment Info:',
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, leftY, 200, 15),
+    );
+    leftY += 20;
+
+    final double labelWidth = 70;
+    _drawLabelValue(
+      graphics,
+      'Account #:',
+      '1234 5678 9012',
+      regularFont,
+      margin,
+      leftY,
+      labelWidth,
+    );
+    leftY += 15;
+    _drawLabelValue(
+      graphics,
+      'A/C Name:',
+      settings?.shopName ?? 'Shop Name',
+      regularFont,
+      margin,
+      leftY,
+      labelWidth,
+    );
+    leftY += 15;
+    _drawLabelValue(
+      graphics,
+      'Bank Details:',
+      'Add your bank details',
+      regularFont,
+      margin,
+      leftY,
+      labelWidth,
+    );
+    leftY += 30;
+
+    // Terms & Conditions
+    graphics.drawString(
+      'Terms & Conditions',
+      boldFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, leftY, 200, 15),
+    );
+    leftY += 15;
+    graphics.drawString(
+      'Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit. Fusce\ndignissim pretium consectetur.',
+      smallFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(margin, leftY, 250, 40),
+    );
+
+    // 3. Right Side: Totals
+    final double rightColX = pageWidth - margin - 250;
+    final double rightColWidth = 250;
+
+    // Sub Total
+    _drawTotalRow(
+      graphics,
+      'Sub Total:',
+      cashMemo.subtotal,
+      regularFont,
+      rightColX,
+      rightY,
+      rightColWidth,
+    );
+    rightY += 20;
 
     // Tax
-    if (cashMemo.tax > 0) {
-      graphics.drawString(
-        'Tax:',
-        regularFont,
-        bounds: Rect.fromLTWH(startX, yPosition, width / 2, 15),
-      );
-      graphics.drawString(
-        '${AppConstants.currencySymbol}${cashMemo.tax.toStringAsFixed(2)}',
-        regularFont,
-        bounds: Rect.fromLTWH(startX + width / 2, yPosition, width / 2, 15),
-        format: PdfStringFormat(alignment: PdfTextAlignment.right),
-      );
-      yPosition += 20;
-    }
+    _drawTotalRow(
+      graphics,
+      'Tax:',
+      cashMemo.tax,
+      regularFont,
+      rightColX,
+      rightY,
+      rightColWidth,
+    );
+    rightY += 20;
 
     // Divider
     graphics.drawLine(
-      PdfPen(PdfColor(0, 0, 0), width: 1),
-      Offset(startX, yPosition),
-      Offset(startX + width, yPosition),
+      PdfPen(PdfColor(200, 200, 200), width: 1),
+      Offset(rightColX, rightY),
+      Offset(rightColX + rightColWidth, rightY),
     );
-    yPosition += 10;
+    rightY += 10;
 
     // Total
     graphics.drawString(
       'Total:',
-      boldFont,
-      bounds: Rect.fromLTWH(startX, yPosition, width / 2, 20),
+      mediumFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX, rightY, 100, 20),
     );
     graphics.drawString(
       '${AppConstants.currencySymbol}${cashMemo.total.toStringAsFixed(2)}',
+      mediumFont,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(rightColX + 100, rightY, 150, 20),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right),
+    );
+
+    // Authorised Sign
+    final double signY = pageHeight - 120; // Position near bottom
+    graphics.drawLine(
+      PdfPen(_textColor, width: 1),
+      Offset(pageWidth - margin - 150, signY),
+      Offset(pageWidth - margin, signY),
+    );
+    graphics.drawString(
+      'Authorised Sign',
       boldFont,
-      brush: PdfSolidBrush(PdfColor(46, 125, 50)),
-      bounds: Rect.fromLTWH(startX + width / 2, yPosition, width / 2, 20),
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(pageWidth - margin - 150, signY + 5, 150, 15),
+      format: PdfStringFormat(alignment: PdfTextAlignment.center),
+    );
+  }
+
+  static void _drawLabelValue(
+    PdfGraphics graphics,
+    String label,
+    String value,
+    PdfFont font,
+    double x,
+    double y,
+    double labelWidth,
+  ) {
+    graphics.drawString(
+      label,
+      font,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(x, y, labelWidth, 15),
+    );
+    graphics.drawString(
+      value,
+      font,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(x + labelWidth + 10, y, 200, 15),
+    );
+  }
+
+  static void _drawTotalRow(
+    PdfGraphics graphics,
+    String label,
+    double value,
+    PdfFont font,
+    double x,
+    double y,
+    double width,
+  ) {
+    graphics.drawString(
+      label,
+      font,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(x, y, width / 2, 15),
+    );
+    graphics.drawString(
+      '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
+      font,
+      brush: PdfSolidBrush(_textColor),
+      bounds: Rect.fromLTWH(x + width / 2, y, width / 2, 15),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
   }
 
-  static void _drawFooter(
+  static void _drawGeometricFooter(
     PdfGraphics graphics,
-    PdfFont boldFont,
-    PdfFont smallFont,
-    double pageHeight,
     double pageWidth,
-    double margin,
+    double pageHeight,
   ) {
-    double yPosition = pageHeight - 60;
-
-    // Thank you message
-    final String thankYouText = 'Thank you for your business!';
-    final Size thankYouSize = boldFont.measureString(thankYouText);
-    graphics.drawString(
-      thankYouText,
-      boldFont,
-      brush: PdfSolidBrush(PdfColor(46, 125, 50)),
-      bounds: Rect.fromLTWH(
-        (pageWidth - thankYouSize.width) / 2,
-        yPosition,
-        thankYouSize.width,
-        thankYouSize.height,
-      ),
-    );
-    yPosition += 20;
-
-    // Generated text
-    final String generatedText = 'This is a computer-generated cash memo';
-    final Size generatedSize = smallFont.measureString(generatedText);
-    graphics.drawString(
-      generatedText,
-      smallFont,
-      brush: PdfSolidBrush(PdfColor(120, 120, 120)),
-      bounds: Rect.fromLTWH(
-        (pageWidth - generatedSize.width) / 2,
-        yPosition,
-        generatedSize.width,
-        generatedSize.height,
-      ),
+    // 1. Dark Blue Shape (Left Bottom)
+    graphics.drawPolygon(
+      [
+        Offset(0, pageHeight),
+        Offset(0, pageHeight - 40),
+        Offset(pageWidth * 0.35, pageHeight - 40),
+        Offset(pageWidth * 0.45, pageHeight),
+      ],
+      brush: PdfSolidBrush(_darkBlueColor),
     );
 
-    // Authorized Signatory
-    final String signText = 'Authorized Signatory';
-    final Size signSize = smallFont.measureString(signText);
-    graphics.drawString(
-      signText,
-      smallFont,
-      bounds: Rect.fromLTWH(
-        pageWidth - margin - signSize.width,
-        pageHeight - 80,
-        signSize.width,
-        signSize.height,
-      ),
-    );
-    graphics.drawLine(
-      PdfPen(PdfColor(0, 0, 0), width: 0.5),
-      Offset(pageWidth - margin - signSize.width - 10, pageHeight - 85),
-      Offset(pageWidth - margin + 10, pageHeight - 85),
+    // 2. Orange Shape (Right Bottom)
+    graphics.drawPolygon(
+      [
+        Offset(pageWidth * 0.50, pageHeight),
+        Offset(pageWidth * 0.55, pageHeight - 50),
+        Offset(pageWidth, pageHeight - 50),
+        Offset(pageWidth, pageHeight),
+      ],
+      brush: PdfSolidBrush(_orangeColor),
     );
   }
 }
