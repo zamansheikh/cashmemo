@@ -33,9 +33,7 @@ dependencies:
   # UI
   flutter_slidable: ^4.0.3
   gap: ^3.0.1
-  bangla_pdf:
-    git:
-      url: https://github.com/zamansheikh/bangla_pdf.git
+  bangla_pdf: ^1.0.1
 
 dev_dependencies:
   flutter_test:
