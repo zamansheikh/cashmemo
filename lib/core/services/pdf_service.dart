@@ -423,7 +423,7 @@ class PdfService {
 
     // Payment Info
     g.drawString(
-      'Payment Info:',
+      'Invoice By:',
       bold,
       brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(margin, leftSideY, 200, 20),
@@ -431,9 +431,9 @@ class PdfService {
     leftSideY += 22;
 
     final paymentLines = [
-      ['Account #:', '1234 5678 9012'],
-      ['A/C Name:', settings?.shopName ?? 'Shop Name'],
-      ['Bank:', 'Your Bank Details'],
+      ['Name:', 'Your Name Here'],
+      ['Role:', 'Your Role/Position'],
+      ['Contact:', 'Your Contact Information'],
     ];
 
     for (var line in paymentLines) {
@@ -569,7 +569,7 @@ class PdfService {
       'Authorised Sign',
       font,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(signX, height - 55, 180, 20),
+      bounds: Rect.fromLTWH(signX, height - 50, 180, 20),
       format: PdfStringFormat(alignment: PdfTextAlignment.center),
     );
   }
