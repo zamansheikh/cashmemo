@@ -1,576 +1,461 @@
-import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/services.dart';
-// Update these imports based on your actual folder structure
+import 'package:bangla_pdf/bangla_pdf.dart';
+
+// Update imports based on your actual folder structure
 import '../../domain/entities/cash_memo.dart';
 import '../../domain/entities/shop_settings.dart';
 import '../constants/app_constants.dart';
 
 class PdfService {
   // Colors
-  static final PdfColor _yellowColor = PdfColor(255, 193, 7); // Amber
-  static final PdfColor _darkColor = PdfColor(51, 51, 51);
-  static final PdfColor _lightGrayColor = PdfColor(245, 245, 245);
-  static final PdfColor _textColor = PdfColor(60, 60, 60);
-  static final PdfColor _whiteColor = PdfColor(255, 255, 255);
+  static const PdfColor _yellowColor = PdfColor.fromInt(0xFFFFC107); // Amber
+  static const PdfColor _darkColor = PdfColor.fromInt(0xFF333333);
 
   static Future<void> generateAndPrintCashMemo(
     CashMemo cashMemo,
     ShopSettings shopSettings,
   ) async {
-    final PdfDocument document = PdfDocument();
-    document.pageSettings.size = PdfPageSize.a4;
-    document.pageSettings.margins.all = 0;
+    // 1. Initialize Bangla Fonts (REQUIRED by the package)
+    await BanglaFontManager().initialize();
 
-    // Load fonts - Using Hind Siliguri for better PDF rendering
-    // Hind Siliguri is optimized for Bangla script rendering in PDFs
-    final ByteData regularData = await rootBundle.load(
-      'assets/Hind_Siliguri/HindSiliguri-Regular.ttf',
-    );
-    final ByteData boldData = await rootBundle.load(
-      'assets/Hind_Siliguri/HindSiliguri-Bold.ttf',
-    );
+    final pdf = pw.Document();
 
-    final PdfFont regularFont = PdfTrueTypeFont(
-      regularData.buffer.asUint8List(),
-      10,
-    );
-    final PdfFont boldFont = PdfTrueTypeFont(
-      boldData.buffer.asUint8List(),
-      10,
-      style: PdfFontStyle.bold,
-    );
-    final PdfFont titleFont = PdfTrueTypeFont(
-      boldData.buffer.asUint8List(),
-      24,
-      style: PdfFontStyle.bold,
-    );
-    final PdfFont headerLabelFont = PdfTrueTypeFont(
-      boldData.buffer.asUint8List(),
-      35,
-      style: PdfFontStyle.bold,
-    );
-    final PdfFont mediumFont = PdfTrueTypeFont(
-      boldData.buffer.asUint8List(),
-      14,
-      style: PdfFontStyle.bold,
-    );
+    // We don't need to manually load fonts anymore!
+    // The package handles it via BanglaFontType.
 
-    final PdfPage page = document.pages.add();
-    final PdfGraphics g = page.graphics;
-    final double pageWidth = page.getClientSize().width;
-    final double pageHeight = page.getClientSize().height;
-    final double margin = 40;
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(0),
+        build: (pw.Context context) {
+          return [
+            _buildHeader(shopSettings),
 
-    double y = 40;
-
-    // 1. Header
-    y = _drawHeader(
-      g,
-      shopSettings,
-      titleFont,
-      regularFont,
-      headerLabelFont,
-      pageWidth,
-      y,
-      margin,
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 40),
+              child: pw.Column(
+                children: [
+                  _buildInvoiceInfo(cashMemo),
+                  pw.SizedBox(height: 20),
+                  _buildItemsTable(cashMemo),
+                  pw.SizedBox(height: 20),
+                  _buildFooterSection(cashMemo, shopSettings),
+                ],
+              ),
+            ),
+          ];
+        },
+        footer: (context) => _buildBottomBar(shopSettings),
+      ),
     );
-
-    // 2. Invoice Info
-    y = _drawInvoiceInfo(
-      g,
-      cashMemo,
-      mediumFont,
-      boldFont,
-      regularFont,
-      y,
-      pageWidth,
-      margin,
-    );
-
-    // 3. Items Table
-    final PdfLayoutResult tableResult = _drawItemsTable(
-      page,
-      cashMemo,
-      boldFont,
-      regularFont,
-      y + 20,
-      pageWidth,
-      margin,
-    );
-
-    // 4. Footer Section (FIXED OVERLAP HERE)
-    y = _drawFooterSection(
-      page,
-      cashMemo,
-      shopSettings,
-      mediumFont,
-      boldFont,
-      regularFont,
-      tableResult.bounds.bottom + 30,
-      pageWidth,
-      margin,
-    );
-
-    // 5. Bottom Bar
-    _drawBottomBar(g, shopSettings, pageWidth, pageHeight, margin, regularFont);
-
-    final List<int> bytes = await document.save();
-    document.dispose();
 
     await Printing.layoutPdf(
-      onLayout: (_) => Future.value(Uint8List.fromList(bytes)),
+      onLayout: (PdfPageFormat format) async => pdf.save(),
     );
   }
 
-  // --- HEADER ---
-  static double _drawHeader(
-    PdfGraphics g,
-    ShopSettings s,
-    PdfFont titleFont,
-    PdfFont tagFont,
-    PdfFont invoiceLabelFont,
-    double width,
-    double y,
-    double margin,
-  ) {
-    const double logoSize = 36;
+  // --- 1. HEADER ---
+  static pw.Widget _buildHeader(ShopSettings settings) {
+    return pw.Column(
+      children: [
+        pw.SizedBox(height: 40),
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 40),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Logo
+              pw.Container(
+                width: 36,
+                height: 36,
+                transform: Matrix4.rotationZ(0.785398),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: _darkColor, width: 2.5),
+                ),
+              ),
+              pw.SizedBox(width: 30),
 
-    // Logo
-    g.drawPolygon([
-      Offset(margin + logoSize / 2, y),
-      Offset(margin + logoSize, y + logoSize / 2),
-      Offset(margin + logoSize / 2, y + logoSize),
-      Offset(margin, y + logoSize / 2),
-    ], pen: PdfPen(_darkColor, width: 2.5));
+              // Shop Name
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Using BanglaText for potential Bengali shop names
+                  BanglaText(
+                    settings.shopName.isNotEmpty
+                        ? settings.shopName
+                        : "Brand Name",
+                    fontType: BanglaFontType.kalpurush,
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    color: _darkColor,
+                  ),
+                  BanglaText(
+                    settings.tagline ?? 'Your tagline here',
+                    fontType: BanglaFontType.kalpurush,
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 20),
 
-    final double textX = margin + logoSize + 15;
-
-    // Shop Name
-    g.drawString(
-      s.shopName.isNotEmpty ? s.shopName : "Brand Name",
-      titleFont,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(textX, y - 5, 400, 40),
-      format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.middle),
+        // Yellow Bar & INVOICE
+        pw.Row(
+          children: [
+            pw.Container(
+              width: PdfPageFormat.a4.width * 0.55,
+              height: 35,
+              color: _yellowColor,
+            ),
+            pw.SizedBox(width: 15),
+            pw.Text(
+              'INVOICE', // English text can use standard Text widget
+              style: pw.TextStyle(
+                fontSize: 35,
+                fontWeight: pw.FontWeight.bold,
+                color: _darkColor,
+              ),
+            ),
+            pw.SizedBox(width: 15),
+            pw.Expanded(child: pw.Container(height: 35, color: _yellowColor)),
+          ],
+        ),
+        pw.SizedBox(height: 30),
+      ],
     );
-
-    // Tagline
-    g.drawString(
-      s.tagline ?? 'Your tagline here',
-      tagFont,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(textX, y + 35, 300, 20),
-    );
-
-    // Yellow Bars & Invoice Text
-    double barY = y + 70;
-    double barHeight = 35;
-    final Size invoiceTextSize = invoiceLabelFont.measureString('INVOICE');
-
-    double leftBarWidth = width * 0.55;
-    double invoiceTextX = leftBarWidth + 15;
-    double rightBarStartX = invoiceTextX + invoiceTextSize.width + 15;
-    double rightBarWidth = width - rightBarStartX;
-
-    g.drawRectangle(
-      bounds: Rect.fromLTWH(0, barY, leftBarWidth, barHeight),
-      brush: PdfSolidBrush(_yellowColor),
-    );
-
-    g.drawString(
-      'INVOICE',
-      invoiceLabelFont,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(
-        invoiceTextX,
-        barY - 6,
-        invoiceTextSize.width,
-        invoiceTextSize.height,
-      ),
-    );
-
-    if (rightBarWidth > 0) {
-      g.drawRectangle(
-        bounds: Rect.fromLTWH(rightBarStartX, barY, rightBarWidth, barHeight),
-        brush: PdfSolidBrush(_yellowColor),
-      );
-    }
-
-    return barY + barHeight + 40;
   }
 
-  // --- INVOICE INFO ---
-  static double _drawInvoiceInfo(
-    PdfGraphics g,
-    CashMemo cm,
-    PdfFont title,
-    PdfFont bold,
-    PdfFont regular,
-    double y,
-    double width,
-    double margin,
-  ) {
-    double maxY = y;
-
-    g.drawString(
-      'Invoice to:',
-      title,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, y, 200, 25),
+  // --- 2. INVOICE INFO ---
+  static pw.Widget _buildInvoiceInfo(CashMemo memo) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        // Left: To
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'Invoice to:',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+                color: _darkColor,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            if (memo.customerName != null && memo.customerName!.isNotEmpty)
+              BanglaText(
+                memo.customerName!,
+                fontType: BanglaFontType.kalpurush,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            if (memo.customerAddress != null &&
+                memo.customerAddress!.isNotEmpty)
+              pw.SizedBox(
+                width: 250,
+                child: BanglaText(
+                  memo.customerAddress!,
+                  fontType: BanglaFontType.kalpurush,
+                ),
+              ),
+          ],
+        ),
+        // Right: Info
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildLabelValueRow('Invoice#', memo.memoNumber),
+            pw.SizedBox(height: 5),
+            _buildLabelValueRow(
+              'Date',
+              DateFormat('dd / MM / yyyy').format(memo.date),
+            ),
+          ],
+        ),
+      ],
     );
-    double leftY = y + 30;
-
-    if (cm.customerName != null && cm.customerName!.isNotEmpty) {
-      g.drawString(
-        cm.customerName!,
-        bold,
-        brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin, leftY, 280, 20),
-      );
-      leftY += 22;
-    }
-    if (cm.customerAddress != null && cm.customerAddress!.isNotEmpty) {
-      g.drawString(
-        cm.customerAddress!,
-        regular,
-        brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin, leftY, 280, 50),
-        format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
-      );
-      leftY += 50;
-    }
-    maxY = leftY > maxY ? leftY : maxY;
-
-    double rightY = y + 5;
-    final double rightX = width - margin - 250;
-
-    g.drawString(
-      'Invoice#',
-      bold,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX, rightY, 90, 20),
-    );
-    g.drawString(
-      cm.memoNumber,
-      bold,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightX + 100, rightY, 150, 20),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right),
-    );
-    rightY += 25;
-
-    g.drawString(
-      'Date',
-      bold,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX, rightY, 90, 20),
-    );
-    g.drawString(
-      DateFormat('dd / MM / yyyy').format(cm.date),
-      bold,
-      brush: PdfSolidBrush(_textColor),
-      bounds: Rect.fromLTWH(rightX + 100, rightY, 150, 20),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right),
-    );
-
-    return maxY > rightY + 30 ? maxY + 20 : rightY + 50;
   }
 
-  // --- ITEMS TABLE ---
-  static PdfLayoutResult _drawItemsTable(
-    PdfPage page,
-    CashMemo cm,
-    PdfFont bold,
-    PdfFont regular,
-    double y,
-    double width,
-    double margin,
-  ) {
-    final PdfGrid grid = PdfGrid();
-    grid.columns.add(count: 5);
-    final double tableWidth = width - margin * 2;
-
-    grid.columns[0].width = tableWidth * 0.08;
-    grid.columns[1].width = tableWidth * 0.42;
-    grid.columns[2].width = tableWidth * 0.15;
-    grid.columns[3].width = tableWidth * 0.15;
-    grid.columns[4].width = tableWidth * 0.20;
-
-    final PdfGridRow header = grid.headers.add(1)[0];
-    header.cells[0].value = 'SL.';
-    header.cells[1].value = 'Item Description';
-    header.cells[2].value = 'Price';
-    header.cells[3].value = 'Qty.';
-    header.cells[4].value = 'Total';
-
-    for (int i = 0; i < 5; i++) {
-      header.cells[i].style = PdfGridCellStyle(
-        backgroundBrush: PdfSolidBrush(_darkColor),
-        textBrush: PdfSolidBrush(_whiteColor),
-        font: bold,
-        cellPadding: PdfPaddings(left: 6, top: 8, right: 6, bottom: 8),
-      );
-      header.cells[i].stringFormat = PdfStringFormat(
-        alignment: i < 2 ? PdfTextAlignment.left : PdfTextAlignment.right,
-        lineAlignment: PdfVerticalAlignment.middle,
-      );
-    }
-
-    for (int i = 0; i < cm.items.length; i++) {
-      final item = cm.items[i];
-      final row = grid.rows.add();
-      row.cells[0].value = '${i + 1}';
-      row.cells[1].value = item.productName;
-      row.cells[2].value = item.price.toStringAsFixed(2);
-      row.cells[3].value = item.quantity.toString();
-      row.cells[4].value = item.total.toStringAsFixed(2);
-
-      final color = i.isEven ? _whiteColor : _lightGrayColor;
-      for (int j = 0; j < 5; j++) {
-        row.cells[j].style = PdfGridCellStyle(
-          backgroundBrush: PdfSolidBrush(color),
-          textBrush: PdfSolidBrush(_textColor),
-          font: regular,
-          cellPadding: PdfPaddings(left: 6, top: 8, right: 6, bottom: 8),
-        );
-        row.cells[j].stringFormat = PdfStringFormat(
-          alignment: j < 2 ? PdfTextAlignment.left : PdfTextAlignment.right,
-          lineAlignment: PdfVerticalAlignment.middle,
-        );
-      }
-    }
-
-    return grid.draw(
-      page: page,
-      bounds: Rect.fromLTWH(margin, y, tableWidth, 0),
-    )!;
+  static pw.Widget _buildLabelValueRow(String label, String value) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.SizedBox(
+          width: 80,
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: _darkColor,
+            ),
+          ),
+        ),
+        // Value might contain Bangla (if you use Bangla numerals later), so safe to use BanglaText
+        BanglaText(
+          value,
+          fontType: BanglaFontType.kalpurush,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ],
+    );
   }
 
-  // ==================================================
-  // FIXED FOOTER SECTION (Prevents Overlap)
-  // ==================================================
-  static double _drawFooterSection(
-    PdfPage page,
-    CashMemo cm,
-    ShopSettings? settings,
-    PdfFont medium,
-    PdfFont bold,
-    PdfFont regular,
-    double y,
-    double width,
-    double margin,
-  ) {
-    final PdfGraphics g = page.graphics;
-    double currentY = y;
-
-    // 1. Calculate Layout Geometry to prevent overlap
-    // ------------------------------------------------
-    // Define the width of the "Totals" box on the right.
-    // Reduced from 260 to 220 to give more space to Terms.
-    final double totalsBoxWidth = 220;
-    final double rightStartX = width - margin - totalsBoxWidth;
-
-    // Define the max width for "Terms" so it stops BEFORE hitting the Totals.
-    // We leave a 30px gap between them.
-    final double termsMaxWidth = rightStartX - margin - 30;
-
-    // 2. Draw "Thank you"
-    g.drawString(
-      'Thank you for your business',
-      bold,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, currentY, 350, 25),
-    );
-    currentY += 35;
-
-    double leftSideY = currentY;
-    double rightSideY = currentY;
-
-    // 3. LEFT SIDE: Terms & Payment
-    // -----------------------------
-    g.drawString(
-      'Terms & Conditions',
-      bold,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, leftSideY, termsMaxWidth, 20),
-    );
-    leftSideY += 22;
-
-    String termsText =
-        settings?.terms ??
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce dignissim pretium consectetur.';
-
-    PdfTextElement termsElement = PdfTextElement(
-      text: termsText,
-      font: regular,
-      brush: PdfSolidBrush(_textColor),
-      format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
-    );
-
-    // **CRITICAL FIX**: Use termsMaxWidth here
-    PdfLayoutResult? termsResult = termsElement.draw(
-      page: page,
-      bounds: Rect.fromLTWH(margin, leftSideY, termsMaxWidth, 0),
-    );
-
-    if (termsResult != null) {
-      leftSideY = termsResult.bounds.bottom + 25;
-    } else {
-      leftSideY += 40;
-    }
-
-    // Payment Info
-    g.drawString(
-      'Invoice By:',
-      bold,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, leftSideY, 200, 20),
-    );
-    leftSideY += 22;
-
-    final paymentLines = [
-      ['Name:', settings?.invoiceByName ?? 'Your Name Here'],
-      ['Role:', settings?.invoiceByRole ?? 'Your Role/Position'],
-      ['Contact:', settings?.invoiceByContact ?? 'Your Contact Information'],
+  // --- 3. ITEMS TABLE ---
+  static pw.Widget _buildItemsTable(CashMemo memo) {
+    // Convert data for table
+    final List<List<String>> tableData = [
+      ['SL.', 'Item Description', 'Price', 'Qty.', 'Total'], // Header
+      ...memo.items.asMap().entries.map((entry) {
+        final index = entry.key + 1;
+        final item = entry.value;
+        return [
+          '$index',
+          item.productName, // This is likely Bangla
+          item.price.toStringAsFixed(2),
+          item.quantity.toString(),
+          item.total.toStringAsFixed(2),
+        ];
+      }),
     ];
 
-    for (var line in paymentLines) {
-      g.drawString(
-        line[0],
-        bold,
-        brush: PdfSolidBrush(_darkColor),
-        bounds: Rect.fromLTWH(margin, leftSideY, 80, 18),
-      );
-      g.drawString(
-        line[1],
-        regular,
-        brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin + 85, leftSideY, termsMaxWidth - 85, 18),
-      );
-      leftSideY += 18;
-    }
+    // Use BanglaTable from the package!
+    // It handles the styling and font fixing automatically.
+    return BanglaTable(
+      data: tableData,
+      fontType: BanglaFontType.kalpurush,
+      fontSize: 10,
+      // headerTextStyle: BanglaFontType.kalpurush.ts(
+      //   color: _whiteColor,
+      //   fontWeight: pw.FontWeight.bold,
+      //   fontSize: 10,
+      // ),
+      // cellTextStyle: BanglaFontType.kalpurush.ts(
+      //   color: _darkColor,
+      //   fontSize: 10,
+      // ),
+      cellAlignment: pw.Alignment.centerLeft,
+      columnWidths: {
+        0: const pw.FixedColumnWidth(30), // SL
+        1: const pw.FlexColumnWidth(4), // Desc
+        2: const pw.FlexColumnWidth(1.5), // Price
+        3: const pw.FlexColumnWidth(1), // Qty
+        4: const pw.FlexColumnWidth(2), // Total
+      },
+      // Custom decoration to match your design
+      // headerDecoration: const pw.BoxDecoration(color: _darkColor),
+      // rowDecoration: const pw.BoxDecoration(color: _whiteColor),
+      // oddRowDecoration: const pw.BoxDecoration(color: _lightGrayColor),
+    );
+  }
 
-    // 4. RIGHT SIDE: Totals
-    // -----------------------------
-    // Sub Total
-    _drawTotalLine(
-      g,
-      'Sub Total:',
-      cm.subtotal,
-      bold,
-      rightStartX,
-      rightSideY,
-      totalsBoxWidth,
-    );
-    rightSideY += 28;
+  // --- 4. FOOTER SECTION ---
+  static pw.Widget _buildFooterSection(CashMemo memo, ShopSettings settings) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // --- LEFT SIDE ---
+        pw.Expanded(
+          flex: 6,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Thank you for your business',
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: _darkColor,
+                ),
+              ),
+              pw.SizedBox(height: 20),
 
-    // Tax
-    _drawTotalLine(
-      g,
-      'Tax:',
-      cm.tax,
-      bold,
-      rightStartX,
-      rightSideY,
-      totalsBoxWidth,
-    );
-    rightSideY += 35;
+              pw.Text(
+                'Terms & Conditions',
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: _darkColor,
+                ),
+              ),
+              pw.SizedBox(height: 5),
 
-    // Yellow Total Box
-    g.drawRectangle(
-      brush: PdfSolidBrush(_yellowColor),
-      bounds: Rect.fromLTWH(rightStartX, rightSideY, totalsBoxWidth, 40),
+              // *** THIS FIXES THE BENGALI TEXT ISSUES AUTOMATICALLY ***
+              BanglaAutoText(
+                settings.terms != null && settings.terms!.isNotEmpty
+                    ? settings.terms!
+                    : 'No terms and conditions provided.',
+                // fontType: BanglaFontType.kalpurush,
+                fontSize: 10,
+              ),
+
+              pw.SizedBox(height: 20),
+
+              pw.Text(
+                'Invoice By:',
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: _darkColor,
+                ),
+              ),
+              pw.SizedBox(height: 5),
+              _buildSimpleRow('Name:', settings.invoiceByName ?? 'Zaman'),
+              _buildSimpleRow('Role:', settings.invoiceByRole ?? 'Dev'),
+              _buildSimpleRow(
+                'Contact:',
+                settings.invoiceByContact ?? '01735069723',
+              ),
+            ],
+          ),
+        ),
+
+        pw.SizedBox(width: 20),
+
+        // --- RIGHT SIDE ---
+        pw.Expanded(
+          flex: 4,
+          child: pw.Column(
+            children: [
+              _buildTotalRow('Sub Total:', memo.subtotal),
+              pw.SizedBox(height: 10),
+              _buildTotalRow('Tax:', memo.tax),
+              pw.SizedBox(height: 20),
+
+              pw.Container(
+                color: _yellowColor,
+                padding: const pw.EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 10,
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Total:',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _darkColor,
+                      ),
+                    ),
+                    // Use BanglaText here just in case currency symbol or numbers need shaping
+                    BanglaText(
+                      '${AppConstants.currencySymbol}${memo.total.toStringAsFixed(2)}',
+                      fontType: BanglaFontType.kalpurush,
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 14,
+                      color: _darkColor,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
-    g.drawString(
-      'Total:',
-      medium,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightStartX + 15, rightSideY + 10, 100, 25),
-    );
-    g.drawString(
-      '${AppConstants.currencySymbol}${cm.total.toStringAsFixed(2)}',
-      medium,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(
-        rightStartX + 100,
-        rightSideY + 10,
-        totalsBoxWidth - 115,
-        25,
+  }
+
+  static pw.Widget _buildSimpleRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 2),
+      child: pw.Row(
+        children: [
+          pw.SizedBox(
+            width: 60,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            ),
+          ),
+          // Use BanglaText for dynamic values that might be in Bengali
+          BanglaText(value, fontType: BanglaFontType.kalpurush, fontSize: 10),
+        ],
       ),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right),
-    );
-    rightSideY += 50;
-
-    // Return lowest Y
-    return leftSideY > rightSideY ? leftSideY : rightSideY;
-  }
-
-  static void _drawTotalLine(
-    PdfGraphics g,
-    String label,
-    double value,
-    PdfFont font,
-    double x,
-    double y,
-    double width,
-  ) {
-    g.drawString(
-      label,
-      font,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(x, y, width / 2, 20),
-    );
-    g.drawString(
-      '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
-      font,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(x + width / 2, y, width / 2 - 10, 20),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
   }
 
-  // --- BOTTOM BAR ---
-  static void _drawBottomBar(
-    PdfGraphics g,
-    ShopSettings? settings,
-    double width,
-    double height,
-    double margin,
-    PdfFont font,
-  ) {
-    final double barY = height - 45;
+  static pw.Widget _buildTotalRow(String label, double value) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontWeight: pw.FontWeight.bold,
+            color: _darkColor,
+          ),
+        ),
+        BanglaText(
+          '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
+          fontType: BanglaFontType.kalpurush,
+          fontWeight: pw.FontWeight.bold,
+          color: _darkColor,
+        ),
+      ],
+    );
+  }
 
-    g.drawRectangle(
-      bounds: Rect.fromLTWH(0, barY, width * 0.65, 4),
-      brush: PdfSolidBrush(_yellowColor),
-    );
-    g.drawRectangle(
-      bounds: Rect.fromLTWH(width * 0.88, barY, width * 0.12, 4),
-      brush: PdfSolidBrush(_yellowColor),
-    );
+  // --- 5. BOTTOM BAR ---
+  static pw.Widget _buildBottomBar(ShopSettings settings) {
+    return pw.Column(
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(right: 40, bottom: 20),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
+            children: [
+              pw.Column(
+                children: [
+                  pw.Container(width: 150, height: 1, color: _darkColor),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'Authorised Sign',
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
 
-    g.drawString(
-      'Phone # ${settings?.phone ?? ''}   |   Address ${settings?.address ?? ''}',
-      font,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin + 10, height - 30, 450, 20),
-    );
+        pw.Row(
+          children: [
+            pw.Container(
+              width: PdfPageFormat.a4.width * 0.65,
+              height: 4,
+              color: _yellowColor,
+            ),
+            pw.Spacer(),
+            pw.Container(
+              width: PdfPageFormat.a4.width * 0.12,
+              height: 4,
+              color: _yellowColor,
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 10),
 
-    final double signX = width - margin - 180;
-    g.drawLine(
-      PdfPen(_darkColor),
-      Offset(signX, height - 70),
-      Offset(signX + 180, height - 70),
-    );
-    g.drawString(
-      'Authorised Sign',
-      font,
-      brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(signX, height - 50, 180, 20),
-      format: PdfStringFormat(alignment: PdfTextAlignment.center),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 40, bottom: 30),
+          child: pw.Row(
+            children: [
+              // Using BanglaText here because address might be in Bengali
+              BanglaText(
+                'Phone # ${settings.phone}   |   Address ${settings.address}',
+                fontType: BanglaFontType.kalpurush,
+                fontSize: 10,
+                color: PdfColors.grey800,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

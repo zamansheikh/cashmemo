@@ -33,6 +33,9 @@ dependencies:
   # UI
   flutter_slidable: ^4.0.3
   gap: ^3.0.1
+  bangla_pdf:
+    git:
+      url: https://github.com/zamansheikh/bangla_pdf.git
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +53,7 @@ flutter:
     - assets/Noto_Sans_Bengali/static/NotoSansBengali-Bold.ttf
     - assets/Hind_Siliguri/HindSiliguri-Regular.ttf
     - assets/Hind_Siliguri/HindSiliguri-Bold.ttf
+    - assets/fonts/SolaimanLipi.ttf
 
   fonts:
     - family: NotoSerifBengali
