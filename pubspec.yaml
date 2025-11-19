@@ -46,6 +46,10 @@ flutter:
   assets:
     - assets/Noto_Serif_Bengali/static/NotoSerifBengali-Regular.ttf
     - assets/Noto_Serif_Bengali/static/NotoSerifBengali-Bold.ttf
+    - assets/Noto_Sans_Bengali/static/NotoSansBengali-Regular.ttf
+    - assets/Noto_Sans_Bengali/static/NotoSansBengali-Bold.ttf
+    - assets/Hind_Siliguri/HindSiliguri-Regular.ttf
+    - assets/Hind_Siliguri/HindSiliguri-Bold.ttf
 
   fonts:
     - family: NotoSerifBengali
@@ -53,4 +57,16 @@ flutter:
         - asset: assets/Noto_Serif_Bengali/static/NotoSerifBengali-Regular.ttf
           weight: 400
         - asset: assets/Noto_Serif_Bengali/static/NotoSerifBengali-Bold.ttf
+          weight: 700
+    - family: NotoSansBengali
+      fonts:
+        - asset: assets/Noto_Sans_Bengali/static/NotoSansBengali-Regular.ttf
+          weight: 400
+        - asset: assets/Noto_Sans_Bengali/static/NotoSansBengali-Bold.ttf
+          weight: 700
+    - family: HindSiliguri
+      fonts:
+        - asset: assets/Hind_Siliguri/HindSiliguri-Regular.ttf
+          weight: 400
+        - asset: assets/Hind_Siliguri/HindSiliguri-Bold.ttf
           weight: 700
