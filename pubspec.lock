@@ -22,10 +22,10 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: f97b331a15809f0ee3a46459b797bfc55c00e880
+      resolved-ref: c7cfa8678e084dcb3064899b656db4b40d7ca478
       url: "https://github.com/zamansheikh/bangla_pdf.git"
     source: git
-    version: "2.0.0"
+    version: "1.0.0"
   barcode:
     dependency: transitive
     description:
