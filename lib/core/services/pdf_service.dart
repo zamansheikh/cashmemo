@@ -407,58 +407,70 @@ class PdfService {
 
   // --- 5. BOTTOM BAR ---
   static pw.Widget _buildBottomBar(ShopSettings settings) {
+    final pageWidth = PdfPageFormat.a4.width;
+
     return pw.Column(
       children: [
-        pw.Padding(
-          padding: const pw.EdgeInsets.only(right: 40, bottom: 20),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
-            children: [
-              pw.Column(
+        pw.SizedBox(height: 10),
+
+        // Yellow bars at top
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            pw.Container(
+              width: pageWidth * 0.58,
+              height: 5,
+              color: _yellowColor,
+            ),
+            // Right: Signature with line
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  pw.Container(width: 150, height: 1, color: _darkColor),
-                  pw.SizedBox(height: 5),
+                  pw.Container(width: 150, height: 2, color: _darkColor),
+                  pw.SizedBox(height: 3),
                   pw.Text(
                     'Authorised Sign',
-                    style: const pw.TextStyle(fontSize: 10),
+                    style: const pw.TextStyle(
+                      fontSize: 14,
+                      color: PdfColor(0, 0, 0),
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-
-        pw.Row(
-          children: [
-            pw.Container(
-              width: PdfPageFormat.a4.width * 0.65,
-              height: 4,
-              color: _yellowColor,
             ),
-            pw.Spacer(),
             pw.Container(
-              width: PdfPageFormat.a4.width * 0.12,
-              height: 4,
+              width: pageWidth * 0.15,
+              height: 5,
               color: _yellowColor,
             ),
           ],
         ),
-        pw.SizedBox(height: 10),
 
+        pw.SizedBox(height: 15),
+
+        // Contact and Signature on same line
         pw.Padding(
-          padding: const pw.EdgeInsets.only(left: 40, bottom: 30),
+          padding: pw.EdgeInsets.symmetric(horizontal: 40),
           child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              // Using BanglaAutoText here because address might be in Bengali
-              BanglaAutoText(
-                'Phone # ${settings.phone}   |   Address ${settings.address}',
-                // fontType: BanglaFontType.kalpurush,
-                fontSize: 10,
-                color: PdfColors.grey800,
+              // Left: Contact Info
+              pw.Text(
+                'Phone # ${settings.phone}   |   Address: ${settings.address}  ',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColor(0, 0, 0),
+                ),
               ),
+              // Right: Spacer
+              pw.Spacer(),
             ],
           ),
         ),
+
+        pw.SizedBox(height: 15),
       ],
     );
   }
