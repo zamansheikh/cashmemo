@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
@@ -61,23 +62,43 @@ class CashMemosScreen extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.print),
-                          onPressed: () async {
-                            final settingsBloc = context
-                                .read<ShopSettingsBloc>();
-                            final settingsState = settingsBloc.state;
-                            if (settingsState is ShopSettingsLoaded) {
-                              await PdfService.generateAndPrintCashMemo(
-                                memo,
-                                settingsState.settings,
-                              );
-                            } else {
-                              await PdfService.generateAndPrintCashMemo(
-                                memo,
-                                null,
-                              );
-                            }
+                        Builder(
+                          builder: (context) {
+                            final settingsState = context
+                                .watch<ShopSettingsBloc>()
+                                .state;
+                            final canPrint =
+                                settingsState is ShopSettingsLoaded;
+                            final shopSettings =
+                                settingsState is ShopSettingsLoaded
+                                ? settingsState.settings
+                                : null;
+                            return IconButton(
+                              icon: const Icon(Icons.print),
+                              onPressed: canPrint
+                                  ? () async {
+                                      await PdfService.generateAndPrintCashMemo(
+                                        memo,
+                                        shopSettings,
+                                      );
+                                    }
+                                  : () {
+                                      if (kDebugMode) {
+                                        debugPrint(
+                                          'Shop settings not loaded. Please configure shop settings before printing.',
+                                        );
+                                      }
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Shop settings not configured. Open Settings to configure.',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                            );
                           },
                         ),
                         IconButton(

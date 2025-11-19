@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../domain/entities/shop_settings.dart';
@@ -126,8 +127,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             );
+          } else if (state is ShopSettingsLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else {
+            // Show empty form to allow creating settings when none are found or error occurred.
+            if (_shopNameController.text.isEmpty) {
+              _shopNameController.text = '';
+              _addressController.text = '';
+              _phoneController.text = '';
+              _emailController.text = '';
+              _gstController.text = '';
+            }
+            return SingleChildScrollView(
+              padding: Responsive.padding(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Shop Information',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _shopNameController,
+                    decoration: const InputDecoration(labelText: 'Shop Name'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _addressController,
+                    decoration: const InputDecoration(labelText: 'Address'),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _phoneController,
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _gstController,
+                    decoration: const InputDecoration(labelText: 'GST Number'),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final settings = ShopSettings(
+                          id: const Uuid().v4(),
+                          shopName: _shopNameController.text,
+                          address: _addressController.text,
+                          phone: _phoneController.text,
+                          email: _emailController.text,
+                          gstNumber: _gstController.text,
+                        );
+                        context.read<ShopSettingsBloc>().add(
+                          SaveShopSettings(settings),
+                        );
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Save Settings'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
-          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
