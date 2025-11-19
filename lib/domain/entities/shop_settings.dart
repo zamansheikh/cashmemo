@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class ShopSettings extends Equatable {
   final String id;
   final String shopName;
+  final String? tagline;
   final String? address;
   final String? phone;
   final String? email;
@@ -12,6 +13,7 @@ class ShopSettings extends Equatable {
   const ShopSettings({
     required this.id,
     required this.shopName,
+    this.tagline,
     this.address,
     this.phone,
     this.email,
@@ -22,6 +24,7 @@ class ShopSettings extends Equatable {
   ShopSettings copyWith({
     String? id,
     String? shopName,
+    String? tagline,
     String? address,
     String? phone,
     String? email,
@@ -31,6 +34,7 @@ class ShopSettings extends Equatable {
     return ShopSettings(
       id: id ?? this.id,
       shopName: shopName ?? this.shopName,
+      tagline: tagline ?? this.tagline,
       address: address ?? this.address,
       phone: phone ?? this.phone,
       email: email ?? this.email,
@@ -43,6 +47,7 @@ class ShopSettings extends Equatable {
   List<Object?> get props => [
     id,
     shopName,
+    tagline,
     address,
     phone,
     email,

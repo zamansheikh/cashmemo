@@ -77,10 +77,12 @@ class CashMemosScreen extends StatelessWidget {
                               icon: const Icon(Icons.print),
                               onPressed: canPrint
                                   ? () async {
-                                      await PdfService.generateAndPrintCashMemo(
-                                        memo,
-                                        shopSettings,
-                                      );
+                                      if (shopSettings != null) {
+                                        await PdfService.generateAndPrintCashMemo(
+                                          memo,
+                                          shopSettings,
+                                        );
+                                      }
                                     }
                                   : () {
                                       if (kDebugMode) {

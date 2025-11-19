@@ -18,7 +18,7 @@ class PdfService {
 
   static Future<void> generateAndPrintCashMemo(
     CashMemo cashMemo,
-    ShopSettings? shopSettings,
+    ShopSettings shopSettings,
   ) async {
     // Create PDF document
     final PdfDocument document = PdfDocument();
@@ -77,6 +77,7 @@ class PdfService {
       pageWidth,
       yPosition,
       margin,
+      shopSettings,
     );
 
     // 2. Invoice Info
@@ -132,13 +133,14 @@ class PdfService {
 
   static double _drawHeader(
     PdfGraphics graphics,
-    ShopSettings? settings,
+    ShopSettings settings,
     PdfFont titleFont,
     PdfFont taglineFont,
     PdfFont headerFont,
     double pageWidth,
     double yPosition,
     double margin,
+    ShopSettings shopSettings,
   ) {
     // Logo (Diamond Shape)
     final double logoSize = 30;
@@ -153,8 +155,8 @@ class PdfService {
     ], pen: PdfPen(_darkColor, width: 3));
 
     // Brand Name & Tagline
-    final String shopName = settings?.shopName ?? 'Brand Name';
-    final String tagline = 'TAGLINE SPACE HERE';
+    final String shopName = shopSettings.shopName;
+    final String tagline = shopSettings.tagline ?? 'TAGLINE SPACE HERE';
     final double textX = margin + logoSize + 15;
 
     graphics.drawString(
@@ -178,8 +180,8 @@ class PdfService {
       headerFont,
       brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(
-        pageWidth - margin - invoiceSize.width,
-        yPosition + 10,
+        pageWidth - margin - invoiceSize.width - 60,
+        yPosition + 40,
         invoiceSize.width,
         invoiceSize.height,
       ),

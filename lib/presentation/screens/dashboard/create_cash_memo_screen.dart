@@ -406,7 +406,14 @@ class _CreateCashMemoScreenState extends State<CreateCashMemoScreen> {
         settingsState.settings,
       );
     } else {
-      await PdfService.generateAndPrintCashMemo(cashMemo, null);
+      //Show error if shop settings not loaded
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Shop settings not configured. Open Settings to configure.',
+          ),
+        ),
+      );
     }
   }
 }
