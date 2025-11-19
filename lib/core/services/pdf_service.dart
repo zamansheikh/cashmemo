@@ -41,16 +41,14 @@ class PdfService {
       10,
       style: PdfFontStyle.bold,
     );
-    // Font for Shop Name
     final PdfFont titleFont = PdfTrueTypeFont(
       boldData.buffer.asUint8List(),
       24,
       style: PdfFontStyle.bold,
     );
-    // Big Font for "INVOICE" title
     final PdfFont headerLabelFont = PdfTrueTypeFont(
       boldData.buffer.asUint8List(),
-      35, // Big size like the reference image
+      35,
       style: PdfFontStyle.bold,
     );
     final PdfFont mediumFont = PdfTrueTypeFont(
@@ -67,7 +65,7 @@ class PdfService {
 
     double y = 40;
 
-    // 1. Header (Logo + Brand + Yellow Bar + INVOICE Text)
+    // 1. Header
     y = _drawHeader(
       g,
       shopSettings,
@@ -79,7 +77,7 @@ class PdfService {
       margin,
     );
 
-    // 2. Invoice Info (To: / Date / #)
+    // 2. Invoice Info
     y = _drawInvoiceInfo(
       g,
       cashMemo,
@@ -102,8 +100,7 @@ class PdfService {
       margin,
     );
 
-    // 4. Footer Section (Terms, Payment, Totals)
-    // We pass 'page' to use PdfTextElement for dynamic height calculation
+    // 4. Footer Section (FIXED OVERLAP HERE)
     y = _drawFooterSection(
       page,
       cashMemo,
@@ -111,15 +108,14 @@ class PdfService {
       mediumFont,
       boldFont,
       regularFont,
-      tableResult.bounds.bottom + 30, // Start below table
+      tableResult.bounds.bottom + 30,
       pageWidth,
       margin,
     );
 
-    // 5. Bottom Bar (Contact + Signature)
+    // 5. Bottom Bar
     _drawBottomBar(g, shopSettings, pageWidth, pageHeight, margin, regularFont);
 
-    // Save & Print
     final List<int> bytes = await document.save();
     document.dispose();
 
@@ -128,7 +124,7 @@ class PdfService {
     );
   }
 
-  // --- 1. HEADER SECTION ---
+  // --- HEADER ---
   static double _drawHeader(
     PdfGraphics g,
     ShopSettings s,
@@ -141,7 +137,7 @@ class PdfService {
   ) {
     const double logoSize = 36;
 
-    // -- A. Logo & Brand Name (Top Left) --
+    // Logo
     g.drawPolygon([
       Offset(margin + logoSize / 2, y),
       Offset(margin + logoSize, y + logoSize / 2),
@@ -151,7 +147,7 @@ class PdfService {
 
     final double textX = margin + logoSize + 15;
 
-    // Draw Shop Name (Height increased to avoid cutting off)
+    // Shop Name
     g.drawString(
       s.shopName.isNotEmpty ? s.shopName : "Brand Name",
       titleFont,
@@ -160,7 +156,7 @@ class PdfService {
       format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.middle),
     );
 
-    // Draw Tagline
+    // Tagline
     g.drawString(
       s.tagline ?? 'Your tagline here',
       tagFont,
@@ -168,42 +164,33 @@ class PdfService {
       bounds: Rect.fromLTWH(textX, y + 35, 300, 20),
     );
 
-    // -- B. Yellow Bar & "INVOICE" Text --
-    // Move down below the logo
+    // Yellow Bars & Invoice Text
     double barY = y + 70;
     double barHeight = 35;
-
-    // Measure "INVOICE" text width to calculate gaps
     final Size invoiceTextSize = invoiceLabelFont.measureString('INVOICE');
 
-    // Layout: [Yellow Bar 55%] [ Gap ] [ INVOICE Text ] [ Gap ] [ Yellow Bar Rest ]
-
     double leftBarWidth = width * 0.55;
-    double invoiceTextX = leftBarWidth + 15; // 15 padding
+    double invoiceTextX = leftBarWidth + 15;
     double rightBarStartX = invoiceTextX + invoiceTextSize.width + 15;
     double rightBarWidth = width - rightBarStartX;
 
-    // 1. Left Yellow Bar
     g.drawRectangle(
       bounds: Rect.fromLTWH(0, barY, leftBarWidth, barHeight),
       brush: PdfSolidBrush(_yellowColor),
     );
 
-    // 2. INVOICE Text (Vertically centered relative to bar)
-    // We adjust Y slightly up because the font is huge
     g.drawString(
       'INVOICE',
       invoiceLabelFont,
       brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(
         invoiceTextX,
-        barY - 6, // Slight offset to align baseline
+        barY - 6,
         invoiceTextSize.width,
         invoiceTextSize.height,
       ),
     );
 
-    // 3. Right Yellow Bar
     if (rightBarWidth > 0) {
       g.drawRectangle(
         bounds: Rect.fromLTWH(rightBarStartX, barY, rightBarWidth, barHeight),
@@ -211,10 +198,10 @@ class PdfService {
       );
     }
 
-    return barY + barHeight + 40; // Return Y position for next section
+    return barY + barHeight + 40;
   }
 
-  // --- 2. INVOICE INFO ---
+  // --- INVOICE INFO ---
   static double _drawInvoiceInfo(
     PdfGraphics g,
     CashMemo cm,
@@ -227,7 +214,6 @@ class PdfService {
   ) {
     double maxY = y;
 
-    // Left Side: Customer Info
     g.drawString(
       'Invoice to:',
       title,
@@ -246,7 +232,6 @@ class PdfService {
       leftY += 22;
     }
     if (cm.customerAddress != null && cm.customerAddress!.isNotEmpty) {
-      // Allow address to wrap 2-3 lines
       g.drawString(
         cm.customerAddress!,
         regular,
@@ -258,11 +243,9 @@ class PdfService {
     }
     maxY = leftY > maxY ? leftY : maxY;
 
-    // Right Side: Invoice # & Date
     double rightY = y + 5;
     final double rightX = width - margin - 250;
 
-    // Invoice Number
     g.drawString(
       'Invoice#',
       bold,
@@ -278,7 +261,6 @@ class PdfService {
     );
     rightY += 25;
 
-    // Date
     g.drawString(
       'Date',
       bold,
@@ -296,7 +278,7 @@ class PdfService {
     return maxY > rightY + 30 ? maxY + 20 : rightY + 50;
   }
 
-  // --- 3. ITEMS TABLE ---
+  // --- ITEMS TABLE ---
   static PdfLayoutResult _drawItemsTable(
     PdfPage page,
     CashMemo cm,
@@ -310,14 +292,12 @@ class PdfService {
     grid.columns.add(count: 5);
     final double tableWidth = width - margin * 2;
 
-    // Column widths
-    grid.columns[0].width = tableWidth * 0.08; // SL
-    grid.columns[1].width = tableWidth * 0.42; // Desc
-    grid.columns[2].width = tableWidth * 0.15; // Price
-    grid.columns[3].width = tableWidth * 0.15; // Qty
-    grid.columns[4].width = tableWidth * 0.20; // Total
+    grid.columns[0].width = tableWidth * 0.08;
+    grid.columns[1].width = tableWidth * 0.42;
+    grid.columns[2].width = tableWidth * 0.15;
+    grid.columns[3].width = tableWidth * 0.15;
+    grid.columns[4].width = tableWidth * 0.20;
 
-    // Header
     final PdfGridRow header = grid.headers.add(1)[0];
     header.cells[0].value = 'SL.';
     header.cells[1].value = 'Item Description';
@@ -338,7 +318,6 @@ class PdfService {
       );
     }
 
-    // Rows
     for (int i = 0; i < cm.items.length; i++) {
       final item = cm.items[i];
       final row = grid.rows.add();
@@ -369,7 +348,9 @@ class PdfService {
     )!;
   }
 
-  // --- 4. FOOTER (Fixing Overlap) ---
+  // ==================================================
+  // FIXED FOOTER SECTION (Prevents Overlap)
+  // ==================================================
   static double _drawFooterSection(
     PdfPage page,
     CashMemo cm,
@@ -384,7 +365,18 @@ class PdfService {
     final PdfGraphics g = page.graphics;
     double currentY = y;
 
-    // Thank You Text
+    // 1. Calculate Layout Geometry to prevent overlap
+    // ------------------------------------------------
+    // Define the width of the "Totals" box on the right.
+    // Reduced from 260 to 220 to give more space to Terms.
+    final double totalsBoxWidth = 220;
+    final double rightStartX = width - margin - totalsBoxWidth;
+
+    // Define the max width for "Terms" so it stops BEFORE hitting the Totals.
+    // We leave a 30px gap between them.
+    final double termsMaxWidth = rightStartX - margin - 30;
+
+    // 2. Draw "Thank you"
     g.drawString(
       'Thank you for your business',
       bold,
@@ -393,27 +385,23 @@ class PdfService {
     );
     currentY += 35;
 
-    // We split the footer into Left (Terms/Payment) and Right (Totals)
     double leftSideY = currentY;
     double rightSideY = currentY;
 
-    // --- LEFT SIDE ---
-
-    // 1. Terms Header
+    // 3. LEFT SIDE: Terms & Payment
+    // -----------------------------
     g.drawString(
       'Terms & Conditions',
       bold,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, leftSideY, 300, 20),
+      bounds: Rect.fromLTWH(margin, leftSideY, termsMaxWidth, 20),
     );
     leftSideY += 22;
 
-    // 2. Terms Body (Dynamic Layout to prevent overlap)
     String termsText =
         settings?.terms ??
         'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce dignissim pretium consectetur.';
 
-    // Create a Text Element
     PdfTextElement termsElement = PdfTextElement(
       text: termsText,
       font: regular,
@@ -421,20 +409,19 @@ class PdfService {
       format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
     );
 
-    // Draw it constrained to width (300) so it doesn't hit the totals
+    // **CRITICAL FIX**: Use termsMaxWidth here
     PdfLayoutResult? termsResult = termsElement.draw(
       page: page,
-      bounds: Rect.fromLTWH(margin, leftSideY, 300, 0),
+      bounds: Rect.fromLTWH(margin, leftSideY, termsMaxWidth, 0),
     );
 
-    // Update Y to the bottom of the drawn text + padding
     if (termsResult != null) {
       leftSideY = termsResult.bounds.bottom + 25;
     } else {
       leftSideY += 40;
     }
 
-    // 3. Payment Info (Drawn BELOW the dynamic terms)
+    // Payment Info
     g.drawString(
       'Payment Info:',
       bold,
@@ -456,56 +443,68 @@ class PdfService {
         brush: PdfSolidBrush(_darkColor),
         bounds: Rect.fromLTWH(margin, leftSideY, 80, 18),
       );
+      // Check if text fits, otherwise truncate or wrap (simplified here)
       g.drawString(
         line[1],
         regular,
         brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin + 85, leftSideY, 220, 18),
+        bounds: Rect.fromLTWH(margin + 85, leftSideY, termsMaxWidth - 85, 18),
       );
       leftSideY += 18;
     }
 
-    // --- RIGHT SIDE (Totals) ---
-    final double rightX = width - margin - 260;
-    final double boxWidth = 260;
-
-    // Subtotal
+    // 4. RIGHT SIDE: Totals
+    // -----------------------------
+    // Sub Total
     _drawTotalLine(
       g,
       'Sub Total:',
       cm.subtotal,
       bold,
-      rightX,
+      rightStartX,
       rightSideY,
-      boxWidth,
+      totalsBoxWidth,
     );
     rightSideY += 28;
 
     // Tax
-    _drawTotalLine(g, 'Tax:', cm.tax, bold, rightX, rightSideY, boxWidth);
+    _drawTotalLine(
+      g,
+      'Tax:',
+      cm.tax,
+      bold,
+      rightStartX,
+      rightSideY,
+      totalsBoxWidth,
+    );
     rightSideY += 35;
 
     // Yellow Total Box
     g.drawRectangle(
       brush: PdfSolidBrush(_yellowColor),
-      bounds: Rect.fromLTWH(rightX, rightSideY, boxWidth, 40),
+      bounds: Rect.fromLTWH(rightStartX, rightSideY, totalsBoxWidth, 40),
     );
     g.drawString(
       'Total:',
       medium,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX + 15, rightSideY + 10, 100, 25),
+      bounds: Rect.fromLTWH(rightStartX + 15, rightSideY + 10, 100, 25),
     );
     g.drawString(
       '${AppConstants.currencySymbol}${cm.total.toStringAsFixed(2)}',
       medium,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX + 110, rightSideY + 10, boxWidth - 125, 25),
+      bounds: Rect.fromLTWH(
+        rightStartX + 100,
+        rightSideY + 10,
+        totalsBoxWidth - 115,
+        25,
+      ),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
     rightSideY += 50;
 
-    // Return the lowest point used (so bottom bar doesn't overlap)
+    // Return lowest Y
     return leftSideY > rightSideY ? leftSideY : rightSideY;
   }
 
@@ -533,7 +532,7 @@ class PdfService {
     );
   }
 
-  // --- 5. BOTTOM BAR ---
+  // --- BOTTOM BAR ---
   static void _drawBottomBar(
     PdfGraphics g,
     ShopSettings? settings,
@@ -544,7 +543,6 @@ class PdfService {
   ) {
     final double barY = height - 45;
 
-    // Yellow Line
     g.drawRectangle(
       bounds: Rect.fromLTWH(0, barY, width * 0.65, 4),
       brush: PdfSolidBrush(_yellowColor),
@@ -554,7 +552,6 @@ class PdfService {
       brush: PdfSolidBrush(_yellowColor),
     );
 
-    // Contact Info
     g.drawString(
       'Phone # ${settings?.phone ?? ''}   |   Address ${settings?.address ?? ''}',
       font,
@@ -562,7 +559,6 @@ class PdfService {
       bounds: Rect.fromLTWH(margin + 10, height - 30, 450, 20),
     );
 
-    // Signature Line
     final double signX = width - margin - 180;
     g.drawLine(
       PdfPen(_darkColor),
