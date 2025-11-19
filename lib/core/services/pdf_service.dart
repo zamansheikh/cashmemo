@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart';
+import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -22,6 +24,16 @@ class PdfService {
     // 1. Initialize Bangla Fonts (REQUIRED by the package)
     await BanglaFontManager().initialize();
 
+    // Load logo asset (if available)
+    Uint8List? logoBytes;
+    try {
+      final data = await rootBundle.load('assets/logo/logo .png');
+      logoBytes = data.buffer.asUint8List();
+    } catch (_) {
+      // If the asset isn't found or failed to load, just leave it null.
+      logoBytes = null;
+    }
+
     final pdf = pw.Document();
 
     // We don't need to manually load fonts anymore!
@@ -33,7 +45,7 @@ class PdfService {
         margin: const pw.EdgeInsets.all(0),
         build: (pw.Context context) {
           return [
-            _buildHeader(shopSettings),
+            _buildHeader(shopSettings, logoBytes),
 
             pw.Padding(
               padding: const pw.EdgeInsets.symmetric(horizontal: 40),
@@ -59,7 +71,7 @@ class PdfService {
   }
 
   // --- 1. HEADER ---
-  static pw.Widget _buildHeader(ShopSettings settings) {
+  static pw.Widget _buildHeader(ShopSettings settings, Uint8List? logoBytes) {
     return pw.Column(
       children: [
         pw.SizedBox(height: 40),
@@ -68,15 +80,27 @@ class PdfService {
           child: pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Logo
-              pw.Container(
-                width: 36,
-                height: 36,
-                transform: Matrix4.rotationZ(0.785398),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: _darkColor, width: 2.5),
-                ),
-              ),
+              pw.SizedBox(width: 10),
+              // Logo (use asset if available; otherwise show placeholder)
+              logoBytes != null
+                  ? pw.Container(
+                      width: 36,
+                      height: 36,
+                      child: pw.Center(
+                        child: pw.Image(
+                          pw.MemoryImage(logoBytes),
+                          fit: pw.BoxFit.contain,
+                        ),
+                      ),
+                    )
+                  : pw.Container(
+                      width: 36,
+                      height: 36,
+                      transform: Matrix4.rotationZ(0.785398),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: _darkColor, width: 2.5),
+                      ),
+                    ),
               pw.SizedBox(width: 30),
 
               // Shop Name
