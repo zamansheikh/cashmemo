@@ -1,0 +1,137 @@
+import 'dart:io';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../../core/constants/app_constants.dart';
+
+class DatabaseHelper {
+  static DatabaseHelper? _instance;
+  static Database? _database;
+
+  DatabaseHelper._();
+
+  factory DatabaseHelper() {
+    _instance ??= DatabaseHelper._();
+    return _instance!;
+  }
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    // Initialize FFI for Windows/Linux/macOS
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, AppConstants.dbName);
+
+    return await openDatabase(
+      path,
+      version: AppConstants.dbVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    // Products table
+    await db.execute('''
+      CREATE TABLE ${AppConstants.productsTable} (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        price REAL NOT NULL,
+        unit TEXT NOT NULL,
+        stock_quantity INTEGER NOT NULL,
+        barcode TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Customers table
+    await db.execute('''
+      CREATE TABLE ${AppConstants.customersTable} (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        address TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Cash Memos table
+    await db.execute('''
+      CREATE TABLE ${AppConstants.cashMemosTable} (
+        id TEXT PRIMARY KEY,
+        memo_number TEXT NOT NULL UNIQUE,
+        date TEXT NOT NULL,
+        customer_id TEXT,
+        customer_name TEXT,
+        customer_phone TEXT,
+        customer_address TEXT,
+        subtotal REAL NOT NULL,
+        discount REAL NOT NULL DEFAULT 0,
+        tax REAL NOT NULL DEFAULT 0,
+        total REAL NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Cash Memo Items table
+    await db.execute('''
+      CREATE TABLE ${AppConstants.cashMemoItemsTable} (
+        id TEXT PRIMARY KEY,
+        cash_memo_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT NOT NULL,
+        price REAL NOT NULL,
+        total REAL NOT NULL,
+        FOREIGN KEY (cash_memo_id) REFERENCES ${AppConstants.cashMemosTable} (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // Shop Settings table
+    await db.execute('''
+      CREATE TABLE ${AppConstants.shopSettingsTable} (
+        id TEXT PRIMARY KEY,
+        shop_name TEXT NOT NULL,
+        address TEXT,
+        phone TEXT,
+        email TEXT,
+        gst_number TEXT,
+        logo_path TEXT
+      )
+    ''');
+
+    // Insert default shop settings
+    await db.insert(AppConstants.shopSettingsTable, {
+      'id': '1',
+      'shop_name': 'My Grocery Shop',
+      'address': '',
+      'phone': '',
+      'email': '',
+      'gst_number': '',
+      'logo_path': null,
+    });
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Handle database upgrades here
+  }
+
+  Future<void> close() async {
+    final db = await database;
+    await db.close();
+  }
+}
