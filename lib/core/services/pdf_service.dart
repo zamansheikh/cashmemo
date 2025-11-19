@@ -3,14 +3,14 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
-// Update these imports to match your project structure
+// Update these imports based on your actual folder structure
 import '../../domain/entities/cash_memo.dart';
 import '../../domain/entities/shop_settings.dart';
 import '../constants/app_constants.dart';
 
 class PdfService {
   // Colors
-  static final PdfColor _yellowColor = PdfColor(255, 193, 7);
+  static final PdfColor _yellowColor = PdfColor(255, 193, 7); // Amber
   static final PdfColor _darkColor = PdfColor(51, 51, 51);
   static final PdfColor _lightGrayColor = PdfColor(245, 245, 245);
   static final PdfColor _textColor = PdfColor(60, 60, 60);
@@ -41,10 +41,16 @@ class PdfService {
       10,
       style: PdfFontStyle.bold,
     );
-    // Title Font for Shop Name
+    // Font for Shop Name
     final PdfFont titleFont = PdfTrueTypeFont(
       boldData.buffer.asUint8List(),
       24,
+      style: PdfFontStyle.bold,
+    );
+    // Big Font for "INVOICE" title
+    final PdfFont headerLabelFont = PdfTrueTypeFont(
+      boldData.buffer.asUint8List(),
+      35, // Big size like the reference image
       style: PdfFontStyle.bold,
     );
     final PdfFont mediumFont = PdfTrueTypeFont(
@@ -53,7 +59,6 @@ class PdfService {
       style: PdfFontStyle.bold,
     );
 
-    // Create the page
     final PdfPage page = document.pages.add();
     final PdfGraphics g = page.graphics;
     final double pageWidth = page.getClientSize().width;
@@ -62,19 +67,19 @@ class PdfService {
 
     double y = 40;
 
-    // 1. Header
+    // 1. Header (Logo + Brand + Yellow Bar + INVOICE Text)
     y = _drawHeader(
       g,
       shopSettings,
       titleFont,
       regularFont,
-      mediumFont, // Use medium font for "INVOICE" label
+      headerLabelFont,
       pageWidth,
       y,
       margin,
     );
 
-    // 2. Invoice Info
+    // 2. Invoice Info (To: / Date / #)
     y = _drawInvoiceInfo(
       g,
       cashMemo,
@@ -96,25 +101,25 @@ class PdfService {
       pageWidth,
       margin,
     );
-    y = tableResult.bounds.bottom + 30;
 
-    // 4. Footer Section (Updated to fix overlapping)
+    // 4. Footer Section (Terms, Payment, Totals)
+    // We pass 'page' to use PdfTextElement for dynamic height calculation
     y = _drawFooterSection(
-      page, // Pass 'page' instead of 'g' for better layout control
+      page,
       cashMemo,
       shopSettings,
       mediumFont,
       boldFont,
       regularFont,
-      y,
+      tableResult.bounds.bottom + 30, // Start below table
       pageWidth,
       margin,
     );
 
-    // 5. Bottom Bar
+    // 5. Bottom Bar (Contact + Signature)
     _drawBottomBar(g, shopSettings, pageWidth, pageHeight, margin, regularFont);
 
-    // Save and Print
+    // Save & Print
     final List<int> bytes = await document.save();
     document.dispose();
 
@@ -123,20 +128,20 @@ class PdfService {
     );
   }
 
-  // FIXED: Adjusted bounds for Shop Name so it doesn't disappear
+  // --- 1. HEADER SECTION ---
   static double _drawHeader(
     PdfGraphics g,
     ShopSettings s,
     PdfFont titleFont,
     PdfFont tagFont,
-    PdfFont invoiceFont,
+    PdfFont invoiceLabelFont,
     double width,
     double y,
     double margin,
   ) {
     const double logoSize = 36;
 
-    // Diamond Logo
+    // -- A. Logo & Brand Name (Top Left) --
     g.drawPolygon([
       Offset(margin + logoSize / 2, y),
       Offset(margin + logoSize, y + logoSize / 2),
@@ -144,19 +149,18 @@ class PdfService {
       Offset(margin, y + logoSize / 2),
     ], pen: PdfPen(_darkColor, width: 2.5));
 
-    // Shop Name
-    // Fix: Increased height to 50 and added vertical alignment
     final double textX = margin + logoSize + 15;
 
+    // Draw Shop Name (Height increased to avoid cutting off)
     g.drawString(
-      s.shopName.isNotEmpty ? s.shopName : "Shop Name", // Fallback
+      s.shopName.isNotEmpty ? s.shopName : "Brand Name",
       titleFont,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(textX, y - 5, 350, 50),
+      bounds: Rect.fromLTWH(textX, y - 5, 400, 40),
       format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.middle),
     );
 
-    // Tagline
+    // Draw Tagline
     g.drawString(
       s.tagline ?? 'Your tagline here',
       tagFont,
@@ -164,34 +168,53 @@ class PdfService {
       bounds: Rect.fromLTWH(textX, y + 35, 300, 20),
     );
 
-    // INVOICE text
-    final Size invoiceSize = invoiceFont.measureString('INVOICE');
+    // -- B. Yellow Bar & "INVOICE" Text --
+    // Move down below the logo
+    double barY = y + 70;
+    double barHeight = 35;
+
+    // Measure "INVOICE" text width to calculate gaps
+    final Size invoiceTextSize = invoiceLabelFont.measureString('INVOICE');
+
+    // Layout: [Yellow Bar 55%] [ Gap ] [ INVOICE Text ] [ Gap ] [ Yellow Bar Rest ]
+
+    double leftBarWidth = width * 0.55;
+    double invoiceTextX = leftBarWidth + 15; // 15 padding
+    double rightBarStartX = invoiceTextX + invoiceTextSize.width + 15;
+    double rightBarWidth = width - rightBarStartX;
+
+    // 1. Left Yellow Bar
+    g.drawRectangle(
+      bounds: Rect.fromLTWH(0, barY, leftBarWidth, barHeight),
+      brush: PdfSolidBrush(_yellowColor),
+    );
+
+    // 2. INVOICE Text (Vertically centered relative to bar)
+    // We adjust Y slightly up because the font is huge
     g.drawString(
       'INVOICE',
-      invoiceFont, // Used medium/bold font
+      invoiceLabelFont,
       brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(
-        width - margin - invoiceSize.width,
-        y + 10,
-        invoiceSize.width,
-        invoiceSize.height,
+        invoiceTextX,
+        barY - 6, // Slight offset to align baseline
+        invoiceTextSize.width,
+        invoiceTextSize.height,
       ),
     );
 
-    // Yellow bars
-    final double barY = y + 70;
-    g.drawRectangle(
-      bounds: Rect.fromLTWH(0, barY, width * 0.58, 28),
-      brush: PdfSolidBrush(_yellowColor),
-    );
-    g.drawRectangle(
-      bounds: Rect.fromLTWH(width * 0.82, barY, width * 0.18, 28),
-      brush: PdfSolidBrush(_yellowColor),
-    );
+    // 3. Right Yellow Bar
+    if (rightBarWidth > 0) {
+      g.drawRectangle(
+        bounds: Rect.fromLTWH(rightBarStartX, barY, rightBarWidth, barHeight),
+        brush: PdfSolidBrush(_yellowColor),
+      );
+    }
 
-    return barY + 50;
+    return barY + barHeight + 40; // Return Y position for next section
   }
 
+  // --- 2. INVOICE INFO ---
   static double _drawInvoiceInfo(
     PdfGraphics g,
     CashMemo cm,
@@ -204,14 +227,14 @@ class PdfService {
   ) {
     double maxY = y;
 
-    // Left: Invoice to
+    // Left Side: Customer Info
     g.drawString(
       'Invoice to:',
       title,
       brush: PdfSolidBrush(_darkColor),
       bounds: Rect.fromLTWH(margin, y, 200, 25),
     );
-    double leftY = y + 28;
+    double leftY = y + 30;
 
     if (cm.customerName != null && cm.customerName!.isNotEmpty) {
       g.drawString(
@@ -223,26 +246,23 @@ class PdfService {
       leftY += 22;
     }
     if (cm.customerAddress != null && cm.customerAddress!.isNotEmpty) {
-      // Use PdfTextElement here too if address is very long,
-      // but drawString with wrap format works for short multiline
+      // Allow address to wrap 2-3 lines
       g.drawString(
         cm.customerAddress!,
         regular,
         brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin, leftY, 280, 60),
-        format: PdfStringFormat(
-          lineAlignment: PdfVerticalAlignment.top,
-          wordWrap: PdfWordWrapType.word,
-        ),
+        bounds: Rect.fromLTWH(margin, leftY, 280, 50),
+        format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
       );
       leftY += 50;
     }
     maxY = leftY > maxY ? leftY : maxY;
 
-    // Right: Invoice# & Date
+    // Right Side: Invoice # & Date
     double rightY = y + 5;
     final double rightX = width - margin - 250;
 
+    // Invoice Number
     g.drawString(
       'Invoice#',
       bold,
@@ -256,8 +276,9 @@ class PdfService {
       bounds: Rect.fromLTWH(rightX + 100, rightY, 150, 20),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
-    rightY += 28;
+    rightY += 25;
 
+    // Date
     g.drawString(
       'Date',
       bold,
@@ -275,6 +296,7 @@ class PdfService {
     return maxY > rightY + 30 ? maxY + 20 : rightY + 50;
   }
 
+  // --- 3. ITEMS TABLE ---
   static PdfLayoutResult _drawItemsTable(
     PdfPage page,
     CashMemo cm,
@@ -288,12 +310,14 @@ class PdfService {
     grid.columns.add(count: 5);
     final double tableWidth = width - margin * 2;
 
-    grid.columns[0].width = tableWidth * 0.08;
-    grid.columns[1].width = tableWidth * 0.42;
-    grid.columns[2].width = tableWidth * 0.15;
-    grid.columns[3].width = tableWidth * 0.15;
-    grid.columns[4].width = tableWidth * 0.20;
+    // Column widths
+    grid.columns[0].width = tableWidth * 0.08; // SL
+    grid.columns[1].width = tableWidth * 0.42; // Desc
+    grid.columns[2].width = tableWidth * 0.15; // Price
+    grid.columns[3].width = tableWidth * 0.15; // Qty
+    grid.columns[4].width = tableWidth * 0.20; // Total
 
+    // Header
     final PdfGridRow header = grid.headers.add(1)[0];
     header.cells[0].value = 'SL.';
     header.cells[1].value = 'Item Description';
@@ -314,6 +338,7 @@ class PdfService {
       );
     }
 
+    // Rows
     for (int i = 0; i < cm.items.length; i++) {
       final item = cm.items[i];
       final row = grid.rows.add();
@@ -344,9 +369,9 @@ class PdfService {
     )!;
   }
 
-  // FIXED: Using PdfTextElement for dynamic layout to prevent overlapping
+  // --- 4. FOOTER (Fixing Overlap) ---
   static double _drawFooterSection(
-    PdfPage page, // Changed from PdfGraphics to PdfPage
+    PdfPage page,
     CashMemo cm,
     ShopSettings? settings,
     PdfFont medium,
@@ -358,9 +383,8 @@ class PdfService {
   ) {
     final PdfGraphics g = page.graphics;
     double currentY = y;
-    double maxY = y;
 
-    // Thank you message
+    // Thank You Text
     g.drawString(
       'Thank you for your business',
       bold,
@@ -369,23 +393,27 @@ class PdfService {
     );
     currentY += 35;
 
-    // --- LEFT SIDE: Terms & Payment ---
+    // We split the footer into Left (Terms/Payment) and Right (Totals)
+    double leftSideY = currentY;
+    double rightSideY = currentY;
 
-    // Terms Header
+    // --- LEFT SIDE ---
+
+    // 1. Terms Header
     g.drawString(
       'Terms & Conditions',
       bold,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin, currentY, 300, 20),
+      bounds: Rect.fromLTWH(margin, leftSideY, 300, 20),
     );
-    currentY += 22;
+    leftSideY += 22;
 
-    // Terms Body (Dynamic Height)
-    // Fix: Using PdfTextElement ensures text wraps and we get the exact bottom Y
+    // 2. Terms Body (Dynamic Layout to prevent overlap)
     String termsText =
         settings?.terms ??
         'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce dignissim pretium consectetur.';
 
+    // Create a Text Element
     PdfTextElement termsElement = PdfTextElement(
       text: termsText,
       font: regular,
@@ -393,23 +421,32 @@ class PdfService {
       format: PdfStringFormat(lineAlignment: PdfVerticalAlignment.top),
     );
 
+    // Draw it constrained to width (300) so it doesn't hit the totals
     PdfLayoutResult? termsResult = termsElement.draw(
       page: page,
-      bounds: Rect.fromLTWH(margin, currentY, 300, 0),
+      bounds: Rect.fromLTWH(margin, leftSideY, 300, 0),
     );
 
-    // Update Y based on where the text actually ended
+    // Update Y to the bottom of the drawn text + padding
     if (termsResult != null) {
-      currentY = termsResult.bounds.bottom + 25;
+      leftSideY = termsResult.bounds.bottom + 25;
     } else {
-      currentY += 40; // Fallback
+      leftSideY += 40;
     }
 
-    // Payment Info
+    // 3. Payment Info (Drawn BELOW the dynamic terms)
+    g.drawString(
+      'Payment Info:',
+      bold,
+      brush: PdfSolidBrush(_darkColor),
+      bounds: Rect.fromLTWH(margin, leftSideY, 200, 20),
+    );
+    leftSideY += 22;
+
     final paymentLines = [
       ['Account #:', '1234 5678 9012'],
-      ['A/C Name:', settings?.shopName ?? 'My Grocery Shop'],
-      ['Bank Details:', 'Your bank name and branch'],
+      ['A/C Name:', settings?.shopName ?? 'Shop Name'],
+      ['Bank:', 'Your Bank Details'],
     ];
 
     for (var line in paymentLines) {
@@ -417,63 +454,59 @@ class PdfService {
         line[0],
         bold,
         brush: PdfSolidBrush(_darkColor),
-        bounds: Rect.fromLTWH(margin, currentY, 90, 18),
+        bounds: Rect.fromLTWH(margin, leftSideY, 80, 18),
       );
       g.drawString(
         line[1],
         regular,
         brush: PdfSolidBrush(_textColor),
-        bounds: Rect.fromLTWH(margin + 100, currentY, 210, 18),
+        bounds: Rect.fromLTWH(margin + 85, leftSideY, 220, 18),
       );
-      currentY += 20;
+      leftSideY += 18;
     }
 
-    maxY = currentY + 20; // This is the bottom of the left side
-
-    // --- RIGHT SIDE: Totals ---
-    // We reset Y for the right side calculation, but keep X aligned to right
-    double rightY = y + 35;
+    // --- RIGHT SIDE (Totals) ---
     final double rightX = width - margin - 260;
     final double boxWidth = 260;
 
-    // Sub Total
+    // Subtotal
     _drawTotalLine(
       g,
       'Sub Total:',
       cm.subtotal,
       bold,
       rightX,
-      rightY,
+      rightSideY,
       boxWidth,
     );
-    rightY += 28;
+    rightSideY += 28;
 
     // Tax
-    _drawTotalLine(g, 'Tax:', cm.tax, bold, rightX, rightY, boxWidth);
-    rightY += 35;
+    _drawTotalLine(g, 'Tax:', cm.tax, bold, rightX, rightSideY, boxWidth);
+    rightSideY += 35;
 
-    // Total Box
+    // Yellow Total Box
     g.drawRectangle(
       brush: PdfSolidBrush(_yellowColor),
-      bounds: Rect.fromLTWH(rightX, rightY, boxWidth, 40),
+      bounds: Rect.fromLTWH(rightX, rightSideY, boxWidth, 40),
     );
     g.drawString(
       'Total:',
       medium,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX + 15, rightY + 10, 100, 25),
+      bounds: Rect.fromLTWH(rightX + 15, rightSideY + 10, 100, 25),
     );
     g.drawString(
       '${AppConstants.currencySymbol}${cm.total.toStringAsFixed(2)}',
       medium,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(rightX + 110, rightY + 10, boxWidth - 125, 25),
+      bounds: Rect.fromLTWH(rightX + 110, rightSideY + 10, boxWidth - 125, 25),
       format: PdfStringFormat(alignment: PdfTextAlignment.right),
     );
-    rightY += 50;
+    rightSideY += 50;
 
-    // Return the larger Y value so subsequent elements don't overlap
-    return maxY > rightY ? maxY : rightY;
+    // Return the lowest point used (so bottom bar doesn't overlap)
+    return leftSideY > rightSideY ? leftSideY : rightSideY;
   }
 
   static void _drawTotalLine(
@@ -500,6 +533,7 @@ class PdfService {
     );
   }
 
+  // --- 5. BOTTOM BAR ---
   static void _drawBottomBar(
     PdfGraphics g,
     ShopSettings? settings,
@@ -510,25 +544,25 @@ class PdfService {
   ) {
     final double barY = height - 45;
 
-    // Yellow bars
+    // Yellow Line
     g.drawRectangle(
-      bounds: Rect.fromLTWH(0, barY, width * 0.65, 6),
+      bounds: Rect.fromLTWH(0, barY, width * 0.65, 4),
       brush: PdfSolidBrush(_yellowColor),
     );
     g.drawRectangle(
-      bounds: Rect.fromLTWH(width * 0.88, barY, width * 0.12, 6),
+      bounds: Rect.fromLTWH(width * 0.88, barY, width * 0.12, 4),
       brush: PdfSolidBrush(_yellowColor),
     );
 
-    // Contact text
+    // Contact Info
     g.drawString(
       'Phone # ${settings?.phone ?? ''}   |   Address ${settings?.address ?? ''}',
       font,
       brush: PdfSolidBrush(_darkColor),
-      bounds: Rect.fromLTWH(margin + 10, height - 30, 400, 20),
+      bounds: Rect.fromLTWH(margin + 10, height - 30, 450, 20),
     );
 
-    // Signature
+    // Signature Line
     final double signX = width - margin - 180;
     g.drawLine(
       PdfPen(_darkColor),
