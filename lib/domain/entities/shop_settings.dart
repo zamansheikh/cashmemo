@@ -5,6 +5,7 @@ class ShopSettings extends Equatable {
   final String shopName;
   final String? tagline;
   final String? address;
+  final String? website;
   final String? phone;
   final String? email;
   final String? gstNumber;
@@ -15,6 +16,7 @@ class ShopSettings extends Equatable {
     required this.shopName,
     this.tagline,
     this.address,
+    this.website,
     this.phone,
     this.email,
     this.gstNumber,
@@ -26,6 +28,7 @@ class ShopSettings extends Equatable {
     String? shopName,
     String? tagline,
     String? address,
+    String? website,
     String? phone,
     String? email,
     String? gstNumber,
@@ -36,6 +39,7 @@ class ShopSettings extends Equatable {
       shopName: shopName ?? this.shopName,
       tagline: tagline ?? this.tagline,
       address: address ?? this.address,
+      website: website ?? this.website,
       phone: phone ?? this.phone,
       email: email ?? this.email,
       gstNumber: gstNumber ?? this.gstNumber,
@@ -49,6 +53,7 @@ class ShopSettings extends Equatable {
     shopName,
     tagline,
     address,
+    website,
     phone,
     email,
     gstNumber,
