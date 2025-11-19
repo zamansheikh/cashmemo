@@ -22,7 +22,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "98334ae0ddf8de38e687d24f00138fe215dbd0fe"
+      resolved-ref: f97b331a15809f0ee3a46459b797bfc55c00e880
       url: "https://github.com/zamansheikh/bangla_pdf.git"
     source: git
     version: "2.0.0"
