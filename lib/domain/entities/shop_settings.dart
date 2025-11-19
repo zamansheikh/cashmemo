@@ -11,6 +11,9 @@ class ShopSettings extends Equatable {
   final String? email;
   final String? gstNumber;
   final String? logoPath;
+  final String? invoiceByName;
+  final String? invoiceByRole;
+  final String? invoiceByContact;
 
   const ShopSettings({
     required this.id,
@@ -23,6 +26,9 @@ class ShopSettings extends Equatable {
     this.email,
     this.gstNumber,
     this.logoPath,
+    this.invoiceByName,
+    this.invoiceByRole,
+    this.invoiceByContact,
   });
 
   ShopSettings copyWith({
@@ -36,6 +42,9 @@ class ShopSettings extends Equatable {
     String? email,
     String? gstNumber,
     String? logoPath,
+    String? invoiceByName,
+    String? invoiceByRole,
+    String? invoiceByContact,
   }) {
     return ShopSettings(
       id: id ?? this.id,
@@ -48,6 +57,9 @@ class ShopSettings extends Equatable {
       email: email ?? this.email,
       gstNumber: gstNumber ?? this.gstNumber,
       logoPath: logoPath ?? this.logoPath,
+      invoiceByName: invoiceByName ?? this.invoiceByName,
+      invoiceByRole: invoiceByRole ?? this.invoiceByRole,
+      invoiceByContact: invoiceByContact ?? this.invoiceByContact,
     );
   }
 
@@ -63,5 +75,8 @@ class ShopSettings extends Equatable {
     email,
     gstNumber,
     logoPath,
+    invoiceByName,
+    invoiceByRole,
+    invoiceByContact,
   ];
 }

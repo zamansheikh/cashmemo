@@ -106,11 +106,17 @@ class DatabaseHelper {
       CREATE TABLE ${AppConstants.shopSettingsTable} (
         id TEXT PRIMARY KEY,
         shop_name TEXT NOT NULL,
+        tagline TEXT,
         address TEXT,
+        website TEXT,
+        terms TEXT,
         phone TEXT,
         email TEXT,
         gst_number TEXT,
-        logo_path TEXT
+        logo_path TEXT,
+        invoice_by_name TEXT,
+        invoice_by_role TEXT,
+        invoice_by_contact TEXT
       )
     ''');
 
@@ -118,11 +124,17 @@ class DatabaseHelper {
     await db.insert(AppConstants.shopSettingsTable, {
       'id': '1',
       'shop_name': 'My Grocery Shop',
+      'tagline': '',
       'address': '',
+      'website': '',
+      'terms': '',
       'phone': '',
       'email': '',
       'gst_number': '',
       'logo_path': null,
+      'invoice_by_name': '',
+      'invoice_by_role': '',
+      'invoice_by_contact': '',
     });
   }
 

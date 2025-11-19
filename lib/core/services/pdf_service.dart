@@ -431,9 +431,9 @@ class PdfService {
     leftSideY += 22;
 
     final paymentLines = [
-      ['Name:', 'Your Name Here'],
-      ['Role:', 'Your Role/Position'],
-      ['Contact:', 'Your Contact Information'],
+      ['Name:', settings?.invoiceByName ?? 'Your Name Here'],
+      ['Role:', settings?.invoiceByRole ?? 'Your Role/Position'],
+      ['Contact:', settings?.invoiceByContact ?? 'Your Contact Information'],
     ];
 
     for (var line in paymentLines) {
@@ -443,7 +443,6 @@ class PdfService {
         brush: PdfSolidBrush(_darkColor),
         bounds: Rect.fromLTWH(margin, leftSideY, 80, 18),
       );
-      // Check if text fits, otherwise truncate or wrap (simplified here)
       g.drawString(
         line[1],
         regular,
