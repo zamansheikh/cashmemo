@@ -28,7 +28,25 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfi;
     }
 
-    final dbPath = await getDatabasesPath();
+    String dbPath;
+
+    // On Windows, use AppData directory instead of getDatabasesPath()
+    // to avoid permission issues in Program Files
+    if (Platform.isWindows) {
+      final appDataEnv = Platform.environment['APPDATA'];
+      if (appDataEnv == null) {
+        throw Exception('APPDATA environment variable not found');
+      }
+      dbPath = join(appDataEnv, 'CashMemo');
+      // Create directory if it doesn't exist
+      final dir = Directory(dbPath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      dbPath = await getDatabasesPath();
+    }
+
     final path = join(dbPath, AppConstants.dbName);
 
     return await openDatabase(

@@ -21,16 +21,21 @@ class PdfService {
     CashMemo cashMemo,
     ShopSettings shopSettings,
   ) async {
-    // 1. Initialize Bangla Fonts (REQUIRED by the package)
-    await BanglaFontManager().initialize();
+    try {
+      // 1. Initialize Bangla Fonts (REQUIRED by the package)
+      await BanglaFontManager().initialize();
+    } catch (e) {
+      print('Warning: Failed to initialize Bangla fonts: $e');
+    }
 
     // Load logo asset (if available)
     Uint8List? logoBytes;
     try {
       final data = await rootBundle.load('assets/logo/logo .png');
       logoBytes = data.buffer.asUint8List();
-    } catch (_) {
+    } catch (e) {
       // If the asset isn't found or failed to load, just leave it null.
+      print('Warning: Could not load logo asset: $e');
       logoBytes = null;
     }
 
