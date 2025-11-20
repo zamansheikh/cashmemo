@@ -20,12 +20,11 @@ packages:
   bangla_pdf:
     dependency: "direct main"
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: c7cfa8678e084dcb3064899b656db4b40d7ca478
-      url: "https://github.com/zamansheikh/bangla_pdf.git"
-    source: git
-    version: "1.0.0"
+      name: bangla_pdf
+      sha256: "10a7b09f82381ec54203aad80058a07e0032a918a7bd3dc5dd4ca9ffeddf359a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   barcode:
     dependency: transitive
     description:
