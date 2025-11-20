@@ -1,6 +1,6 @@
 {
-    "name": "cashmemo",
-    "short_name": "cashmemo",
+    "name": "CashMemo",
+    "short_name": "CashMemo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hexcode",
