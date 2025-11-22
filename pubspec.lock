@@ -29,10 +29,10 @@ packages:
     dependency: "direct main"
     description:
       name: bangla_pdf
-      sha256: "10a7b09f82381ec54203aad80058a07e0032a918a7bd3dc5dd4ca9ffeddf359a"
+      sha256: "6cb5a0e900e139b0684d5a4d1df6278b0e4b13f3554ceb4eeb486ff61568acdf"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.2"
+    version: "1.0.3"
   barcode:
     dependency: transitive
     description:

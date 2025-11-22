@@ -21,13 +21,6 @@ class PdfService {
     CashMemo cashMemo,
     ShopSettings shopSettings,
   ) async {
-    try {
-      // 1. Initialize Bangla Fonts (REQUIRED by the package)
-      await BanglaFontManager().initialize();
-    } catch (e) {
-      print('Warning: Failed to initialize Bangla fonts: $e');
-    }
-
     // Load logo asset (if available)
     Uint8List? logoBytes;
     try {
@@ -113,7 +106,7 @@ class PdfService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   // Using BanglaAutoText for potential Bengali shop names
-                  BanglaAutoText(
+                  Text(
                     settings.shopName.isNotEmpty
                         ? settings.shopName
                         : "Brand Name",
@@ -122,7 +115,7 @@ class PdfService {
                     fontWeight: pw.FontWeight.bold,
                     color: _darkColor,
                   ),
-                  BanglaAutoText(
+                  Text(
                     settings.tagline ?? 'Your tagline here',
                     // fontType: BanglaFontType.kalpurush,
                     fontSize: 10,
@@ -181,7 +174,7 @@ class PdfService {
             ),
             pw.SizedBox(height: 8),
             if (memo.customerName != null && memo.customerName!.isNotEmpty)
-              BanglaAutoText(
+              Text(
                 memo.customerName!,
                 // fontType: BanglaFontType.kalpurush,
                 fontWeight: pw.FontWeight.bold,
@@ -190,7 +183,7 @@ class PdfService {
                 memo.customerAddress!.isNotEmpty)
               pw.SizedBox(
                 width: 250,
-                child: BanglaAutoText(
+                child: Text(
                   memo.customerAddress!,
                   // fontType: BanglaFontType.kalpurush,
                 ),
@@ -228,7 +221,7 @@ class PdfService {
           ),
         ),
         // Value might contain Bangla (if you use Bangla numerals later), so safe to use BanglaAutoText
-        BanglaAutoText(
+        Text(
           value,
           // fontType: BanglaFontType.kalpurush,
           fontWeight: pw.FontWeight.bold,
@@ -257,9 +250,9 @@ class PdfService {
 
     // Use BanglaTable from the package!
     // It handles the styling and font fixing automatically.
-    return BanglaTable(
+    return Table(
       data: tableData,
-      fontType: BanglaFontType.kalpurush,
+      // fontType: BanglaFontType.kalpurush,
       fontSize: 10,
       // headerTextStyle: BanglaFontType.kalpurush.ts(
       //   color: _whiteColor,
@@ -315,7 +308,7 @@ class PdfService {
               pw.SizedBox(height: 5),
 
               // *** THIS FIXES THE BENGALI TEXT ISSUES AUTOMATICALLY ***
-              BanglaAutoText(
+              Text(
                 settings.terms != null && settings.terms!.isNotEmpty
                     ? settings.terms!
                     : 'No terms and conditions provided.',
@@ -373,7 +366,7 @@ class PdfService {
                       ),
                     ),
                     // Use BanglaAutoText here just in case currency symbol or numbers need shaping
-                    BanglaAutoText(
+                    Text(
                       '${AppConstants.currencySymbol}${memo.total.toStringAsFixed(2)}',
                       // fontType: BanglaFontType.kalpurush,
                       fontWeight: pw.FontWeight.bold,
@@ -403,7 +396,7 @@ class PdfService {
             ),
           ),
           // Use BanglaAutoText for dynamic values that might be in Bengali
-          BanglaAutoText(
+          Text(
             value,
             // fontType: BanglaFontType.kalpurush,
             fontSize: 10,
@@ -424,7 +417,7 @@ class PdfService {
             color: _darkColor,
           ),
         ),
-        BanglaAutoText(
+        Text(
           '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
           // fontType: BanglaFontType.kalpurush,
           fontWeight: pw.FontWeight.bold,
@@ -486,7 +479,7 @@ class PdfService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               // Left: Contact Info
-              pw.Text(
+              Text(
                 'Phone # ${settings.phone}   |   Address: ${settings.address}  ',
                 style: const pw.TextStyle(
                   fontSize: 10,
